@@ -12,14 +12,17 @@ import { WALKABLE_RADIUS } from './islandConfig'
 const MODEL_URL = '/models/avatar.vrm'
 const IDLE_URL = '/animations/idle.fbx'
 const WALK_URL = '/animations/walk.fbx'
+const RUN_URL = '/animations/run.fbx'
 
 // --- Movement tuning ---
-// metres/second across the ground. Tuned to roughly match the walk clip's own
-// stride pace (~1.7 m per ~1.03s cycle) so the feet don't visibly slide now
-// that the clip's baked forward motion is stripped (see loadMixamoAnimation).
+// metres/second across the ground. WALK is tuned to roughly match the walk
+// clip's own stride pace (~1.7 m per ~1.03s cycle) so the feet don't visibly
+// slide now that each clip's baked forward motion is stripped (see
+// loadMixamoAnimation). RUN is ~2.6× walk so sprinting reaches markers quickly.
 const WALK_SPEED = 1.7
+const RUN_SPEED = 4.5
 const TURN_RATE = 10 // radians/second the character rotates toward its heading
-const CROSSFADE = 0.25 // seconds to blend idle <-> walk
+const CROSSFADE = 0.2 // seconds to blend between idle / walk / run
 
 // Constant yaw correction applied to the movement heading. rotateVRM0 + the
 // retargeted clips make the avatar face +Z at zero root rotation, and both
@@ -35,10 +38,10 @@ const _camRight = new THREE.Vector3()
 const _move = new THREE.Vector3()
 const _targetQuat = new THREE.Quaternion()
 
-// Loads and renders the VRM avatar, and drives keyboard walking: camera-relative
-// movement, explicit facing, and an idle<->walk crossfade. The root <group> ref
-// is owned by the parent (App) so the follow camera can read the character's
-// position.
+// Loads and renders the VRM avatar, and drives keyboard locomotion:
+// camera-relative movement, explicit facing, and an idle / walk / run crossfade
+// (Shift sprints). The root <group> ref is owned by the parent (App) so the
+// follow camera can read the character's position.
 export default function Character({ rootRef, paused = false }) {
   // useLoader suspends until each file is parsed, then caches it by URL. The VRM
   // loader gets VRMLoaderPlugin registered so it parses the VRM extensions and
@@ -50,6 +53,7 @@ export default function Character({ rootRef, paused = false }) {
   // assets are ready before we build the mixer.
   const idleAsset = useLoader(FBXLoader, IDLE_URL)
   const walkAsset = useLoader(FBXLoader, WALK_URL)
+  const runAsset = useLoader(FBXLoader, RUN_URL)
 
   // [subscribe, get] — we use get() to read the live key state inside useFrame
   // without subscribing (subscribing would re-render React on every keypress).
@@ -160,46 +164,52 @@ export default function Character({ rootRef, paused = false }) {
     rimUniforms.uRimMix.value = rim.mix
   }, [rimUniforms, rim.color, rim.intensity, rim.fresnelPower, rim.mix])
 
-  // Build the mixer + both actions once. Construction only — playback starts in
-  // the effect below. We target vrm.scene because the retargeted tracks address
-  // the VRM's NORMALIZED humanoid bones, which live in that subtree.
-  const { mixer, idleAction, walkAction } = useMemo(() => {
+  // Build the mixer + all three locomotion actions once. Construction only —
+  // playback starts in the effect below. We target vrm.scene because the
+  // retargeted tracks address the VRM's NORMALIZED humanoid bones, which live in
+  // that subtree.
+  const { mixer, actions } = useMemo(() => {
     const mixer = new THREE.AnimationMixer(vrm.scene)
-    const idleAction = mixer.clipAction(retargetMixamoAnimation(idleAsset, vrm))
-    const walkAction = mixer.clipAction(retargetMixamoAnimation(walkAsset, vrm))
-    return { mixer, idleAction, walkAction }
-  }, [vrm, idleAsset, walkAsset])
-
-  // Tracks whether the character was moving last frame, so we only trigger a
-  // crossfade on the transition (not every frame).
-  const movingRef = useRef(false)
-
-  // Start both actions playing; walk begins invisible (weight 0). Keeping both
-  // "playing" the whole time means a crossfade is just a weight ramp — the walk
-  // cycle keeps its phase. Symmetric stop() on cleanup so it survives StrictMode.
-  useEffect(() => {
-    idleAction.reset().play()
-    walkAction.reset().play()
-    walkAction.setEffectiveWeight(0)
-    idleAction.setEffectiveWeight(1)
-    movingRef.current = false
-    return () => {
-      idleAction.stop()
-      walkAction.stop()
+    const actions = {
+      idle: mixer.clipAction(retargetMixamoAnimation(idleAsset, vrm)),
+      walk: mixer.clipAction(retargetMixamoAnimation(walkAsset, vrm)),
+      run: mixer.clipAction(retargetMixamoAnimation(runAsset, vrm)),
     }
-  }, [idleAction, walkAction])
+    return { mixer, actions }
+  }, [vrm, idleAsset, walkAsset, runAsset])
+
+  // Current locomotion state ('idle' | 'walk' | 'run') so we only crossfade on a
+  // change, not every frame.
+  const stateRef = useRef('idle')
+
+  // Start all three clips playing; only idle is visible (weight 1), walk + run
+  // sit at weight 0. Keeping them all "playing" means a state change is just a
+  // weight crossfade and each clip keeps its own phase. Symmetric stop() on
+  // cleanup so it survives StrictMode's double-mount.
+  useEffect(() => {
+    for (const [name, action] of Object.entries(actions)) {
+      action.reset().play()
+      action.setEffectiveWeight(name === 'idle' ? 1 : 0)
+    }
+    stateRef.current = 'idle'
+    return () => {
+      for (const action of Object.values(actions)) action.stop()
+    }
+  }, [actions])
 
   useFrame((state, delta) => {
     const root = rootRef.current
     if (!root) return
 
     _move.set(0, 0, 0)
+    let sprint = false
 
     // Skip movement input while a region panel is open (paused). _move stays
     // zero, so below the character crossfades back to idle and holds position —
     // but the animation updates at the bottom still run, so idle keeps playing.
     if (!paused) {
-      const { forward, backward, left, right } = getKeys()
+      const { forward, backward, left, right, sprint: sprintKey } = getKeys()
+      sprint = sprintKey // Shift held → run instead of walk
 
       // Camera-relative basis on the ground plane: the camera's look direction
       // flattened to XZ is "forward", and its right is forward × up. This makes
@@ -217,14 +227,15 @@ export default function Character({ rootRef, paused = false }) {
     }
 
     const moving = _move.lengthSq() > 0
+    const speed = sprint ? RUN_SPEED : WALK_SPEED
 
     if (moving) {
       _move.normalize()
 
-      // Translate the root at a constant speed; delta keeps it frame-rate
+      // Translate the root at the current speed; delta keeps it frame-rate
       // independent. Then clamp to the island's walkable disc: if we stepped
       // past WALKABLE_RADIUS from centre, pull straight back onto the circle.
-      root.position.addScaledVector(_move, WALK_SPEED * delta)
+      root.position.addScaledVector(_move, speed * delta)
       const distSq =
         root.position.x * root.position.x + root.position.z * root.position.z
       if (distSq > WALKABLE_RADIUS * WALKABLE_RADIUS) {
@@ -241,19 +252,21 @@ export default function Character({ rootRef, paused = false }) {
       root.quaternion.rotateTowards(_targetQuat, TURN_RATE * delta)
     }
 
-    // Crossfade only on the moving/stopped transition. Both actions stay
-    // playing so it's a smooth weight blend, not a hard cut.
-    if (moving !== movingRef.current) {
-      movingRef.current = moving
-      const to = moving ? walkAction : idleAction
-      const from = moving ? idleAction : walkAction
+    // Locomotion state → crossfade. idle when still; when moving, run if
+    // sprinting else walk. Only fade on a state CHANGE; all clips keep playing
+    // underneath so it's a smooth weight blend, not a hard cut.
+    const desired = !moving ? 'idle' : sprint ? 'run' : 'walk'
+    if (desired !== stateRef.current) {
+      const from = actions[stateRef.current]
+      const to = actions[desired]
+      stateRef.current = desired
       from.fadeOut(CROSSFADE)
       // A completed fadeOut leaves an action DISABLED at effective weight 0, and
       // fadeIn neither re-enables it nor touches its base weight. So before
       // fading the incoming clip back in we must (1) re-enable it and (2) restore
       // its base weight to 1 — fadeIn ramps EFFECTIVE weight = baseWeight ×
       // interpolant(0→1), so if either is left at 0 nothing shows and the avatar
-      // snaps to its bind (T-)pose. This is what makes repeated start/stop work.
+      // snaps to its bind (T-)pose. This is what makes the transitions robust.
       to.enabled = true
       to.setEffectiveWeight(1)
       to.fadeIn(CROSSFADE)

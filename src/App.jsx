@@ -66,9 +66,10 @@ export default function App() {
   nearIdRef.current = nearId
   activeIdRef.current = activeId
 
-  // Global keyboard: E opens the nearby region (when none is open), Escape
-  // closes. We use a window listener rather than KeyboardControls because these
-  // are one-shot edge actions (and KeyboardControls doesn't cover Escape).
+  // Global keyboard: E toggles the nearby region's panel (open if closed, close
+  // if open), Escape closes. We use a window listener rather than KeyboardControls
+  // because these are one-shot edge actions (and KeyboardControls doesn't cover
+  // Escape).
   useEffect(() => {
     const onKey = (e) => {
       // Ignore keys typed into form fields (e.g. Leva's number inputs).
@@ -78,8 +79,10 @@ export default function App() {
       }
       if (e.code === 'Escape' && activeIdRef.current) {
         setActiveId(null)
-      } else if (e.code === 'KeyE' && !activeIdRef.current && nearIdRef.current) {
-        setActiveId(nearIdRef.current)
+      } else if (e.code === 'KeyE') {
+        // E toggles: close the open panel, or open the nearby region's.
+        if (activeIdRef.current) setActiveId(null)
+        else if (nearIdRef.current) setActiveId(nearIdRef.current)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -94,6 +97,7 @@ export default function App() {
       { name: 'backward', keys: ['ArrowDown', 'KeyS'] },
       { name: 'left', keys: ['ArrowLeft', 'KeyA'] },
       { name: 'right', keys: ['ArrowRight', 'KeyD'] },
+      { name: 'sprint', keys: ['ShiftLeft', 'ShiftRight'] },
     ],
     [],
   )

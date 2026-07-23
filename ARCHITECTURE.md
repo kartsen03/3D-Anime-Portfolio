@@ -334,6 +334,29 @@ pattern with zero per-region forks.
   graceful "coming soon" — so dropping `public/resume.pdf` in (or removing it)
   changes the panel with no code edit.
 
+## Post-M8 improvements — sprint, torii markers, E-toggle
+
+Three UX/visual upgrades (supersede the matching M4/M7 descriptions above):
+
+- **Sprint (Shift → run).** Locomotion is now a **3-state machine**
+  (`idle` / `walk` / `run`) instead of idle↔walk. `run.fbx` is a third retargeted
+  action on the same mixer; a `sprint` key (`ShiftLeft/Right`, added to the
+  KeyboardControls map) selects it while moving. Each frame the desired state is
+  `!moving ? 'idle' : sprint ? 'run' : 'walk'`; on a state *change* we crossfade
+  (the same enable + restore-base-weight + `fadeIn` fix, now generalised over an
+  `actions` map). Speed switches `WALK_SPEED (1.7)` ↔ `RUN_SPEED (4.5)` (~2.6×).
+  Baked root motion is already stripped for every clip, so no extra sliding
+  logic is needed.
+- **Markers are torii gates.** `Regions.jsx` builds a cel-shaded **torii** from
+  primitives (two tapered pillars + a *kasagi* top beam with a thin overhang slab
+  for the classic curve + a *nuki* cross beam + a *gakuzuka* centre post), tinted
+  the region's `markerColor` (`flatShading` for low-poly crispness). A small
+  HDR-emissive **orb** still floats/bobs in the gate opening as the bloom-glow
+  wayfinding cue. (Replaces M7's crystal-on-pedestal.)
+- **E toggles the panel.** The `App` keydown handler now opens the nearby
+  region's panel *or* closes the open one on **E** (Escape / ✕ / backdrop still
+  close). Movement stays paused while any panel is open.
+
 ## File structure
 
 ```

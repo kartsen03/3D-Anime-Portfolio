@@ -62,16 +62,25 @@ export default function Regions({
   )
 }
 
-function Marker({ region, gradientMap, showPrompt, canActivate, onActivate }) {
-  const crystalRef = useRef()
+// --- Torii-gate marker dimensions (metres) ---
+const T = {
+  pillarH: 3, // pillar height above ground
+  pillarR: 0.16, // pillar radius (top; bottom slightly wider for a taper)
+  halfSpan: 1.15, // half the distance between the two pillars
+  kasagiY: 3.05, // height of the top (curved) beam
+  nukiY: 2.2, // height of the second (lower) beam
+}
 
-  // A little life: the crystal slowly spins and bobs.
+function Marker({ region, gradientMap, showPrompt, canActivate, onActivate }) {
+  const orbRef = useRef()
+
+  // A little life: the focal orb slowly spins and bobs in the gate opening.
   useFrame((state) => {
-    const c = crystalRef.current
-    if (!c) return
+    const o = orbRef.current
+    if (!o) return
     const t = state.clock.elapsedTime
-    c.rotation.y = t * 0.8
-    c.position.y = 1.5 + Math.sin(t * 1.6) * 0.12
+    o.rotation.y = t * 0.8
+    o.position.y = 1.5 + Math.sin(t * 1.6) * 0.12
   })
 
   // R3F pointer events bubble from child meshes up to this group. Clicking only
@@ -88,6 +97,12 @@ function Marker({ region, gradientMap, showPrompt, canActivate, onActivate }) {
     document.body.style.cursor = 'auto'
   }
 
+  // Torii painted in the region's accent colour (wayfinding); flatShading keeps
+  // it crisply low-poly like the island. Same material for every gate part.
+  const gateMat = (
+    <meshToonMaterial color={region.markerColor} gradientMap={gradientMap} flatShading />
+  )
+
   return (
     <group
       position={region.position}
@@ -95,21 +110,47 @@ function Marker({ region, gradientMap, showPrompt, canActivate, onActivate }) {
       onPointerOver={handleOver}
       onPointerOut={handleOut}
     >
-      {/* Stone pedestal (6-sided for a low-poly look). */}
-      <mesh position={[0, 0.25, 0]}>
-        <cylinderGeometry args={[0.55, 0.7, 0.5, 6]} />
-        <meshToonMaterial color="#8a8480" gradientMap={gradientMap} />
+      {/* Two pillars (slightly wider at the base for a subtle taper). */}
+      {[-T.halfSpan, T.halfSpan].map((x) => (
+        <mesh key={x} position={[x, T.pillarH / 2, 0]}>
+          <cylinderGeometry args={[T.pillarR, T.pillarR * 1.25, T.pillarH, 12]} />
+          {gateMat}
+        </mesh>
+      ))}
+
+      {/* Kasagi — the top beam. Wider than the span and overhanging; a thin
+          slab above it reads as the classic slight upward curve without needing
+          curved geometry. */}
+      <mesh position={[0, T.kasagiY, 0]}>
+        <boxGeometry args={[T.halfSpan * 2 + 1.1, 0.26, 0.4]} />
+        {gateMat}
+      </mesh>
+      <mesh position={[0, T.kasagiY + 0.2, 0]}>
+        <boxGeometry args={[T.halfSpan * 2 + 1.4, 0.14, 0.34]} />
+        {gateMat}
       </mesh>
 
-      {/* Floating crystal. emissive × emissiveIntensity pushes its colour above
-          luminance 1.0, so the existing Bloom pass catches it as a glow — which
-          is what makes the interactable read at a glance. */}
-      <mesh ref={crystalRef} position={[0, 1.5, 0]}>
-        <octahedronGeometry args={[0.42, 0]} />
+      {/* Nuki — the lower cross beam between the pillars. */}
+      <mesh position={[0, T.nukiY, 0]}>
+        <boxGeometry args={[T.halfSpan * 2 + 0.3, 0.2, 0.3]} />
+        {gateMat}
+      </mesh>
+
+      {/* Gakuzuka — the little centre post between nuki and kasagi. */}
+      <mesh position={[0, (T.nukiY + T.kasagiY) / 2, 0]}>
+        <boxGeometry args={[0.16, T.kasagiY - T.nukiY, 0.22]} />
+        {gateMat}
+      </mesh>
+
+      {/* Floating focal orb in the gate opening. emissive × emissiveIntensity
+          pushes its colour above luminance 1.0, so the existing Bloom pass
+          catches it as a glow — the wayfinding cue that reads at a glance. */}
+      <mesh ref={orbRef} position={[0, 1.5, 0]}>
+        <icosahedronGeometry args={[0.32, 0]} />
         <meshToonMaterial
           color={region.markerColor}
           emissive={region.markerColor}
-          emissiveIntensity={1.6}
+          emissiveIntensity={1.8}
           gradientMap={gradientMap}
         />
       </mesh>
@@ -120,7 +161,7 @@ function Marker({ region, gradientMap, showPrompt, canActivate, onActivate }) {
           like UI, not a world object). pointer-events are off (see CSS) so it
           never blocks a click on the marker. */}
       {showPrompt && (
-        <Html position={[0, 2.5, 0]} center zIndexRange={[100, 0]}>
+        <Html position={[0, T.kasagiY + 0.7, 0]} center zIndexRange={[100, 0]}>
           <div className="region-prompt">
             <strong>{region.label}</strong> · press <kbd>E</kbd> or click
           </div>

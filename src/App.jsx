@@ -77,9 +77,8 @@ export default function App() {
           // sRGB on output.
           gl={{ toneMapping: THREE.NoToneMapping }}
         >
-          {/* attach="background" assigns this color to scene.background. */}
-          <color attach="background" args={['#fdf6ee']} />
-
+          {/* No <color> background: the procedural <Sky> (in Scene) fills the
+              view in every direction, so it owns the backdrop now. */}
           <Scene characterRef={characterRef} />
 
           {/* OrbitControls kept for drag-orbit + zoom. makeDefault exposes it as

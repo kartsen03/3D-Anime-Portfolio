@@ -7,6 +7,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
 import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm'
 import { retargetMixamoAnimation } from './loadMixamoAnimation'
+import { WALKABLE_RADIUS } from './islandConfig'
 
 const MODEL_URL = '/models/avatar.vrm'
 const IDLE_URL = '/animations/idle.fbx'
@@ -19,7 +20,6 @@ const WALK_URL = '/animations/walk.fbx'
 const WALK_SPEED = 1.7
 const TURN_RATE = 10 // radians/second the character rotates toward its heading
 const CROSSFADE = 0.25 // seconds to blend idle <-> walk
-const GROUND_HALF = 14 // soft bound (ground plane is 30×30) — temporary until the island exists
 
 // Constant yaw correction applied to the movement heading. rotateVRM0 + the
 // retargeted clips make the avatar face +Z at zero root rotation, and both
@@ -216,10 +216,16 @@ export default function Character({ rootRef }) {
       _move.normalize()
 
       // Translate the root at a constant speed; delta keeps it frame-rate
-      // independent. Then soft-clamp so we don't walk off the finite ground.
+      // independent. Then clamp to the island's walkable disc: if we stepped
+      // past WALKABLE_RADIUS from centre, pull straight back onto the circle.
       root.position.addScaledVector(_move, WALK_SPEED * delta)
-      root.position.x = THREE.MathUtils.clamp(root.position.x, -GROUND_HALF, GROUND_HALF)
-      root.position.z = THREE.MathUtils.clamp(root.position.z, -GROUND_HALF, GROUND_HALF)
+      const distSq =
+        root.position.x * root.position.x + root.position.z * root.position.z
+      if (distSq > WALKABLE_RADIUS * WALKABLE_RADIUS) {
+        const s = WALKABLE_RADIUS / Math.sqrt(distSq)
+        root.position.x *= s
+        root.position.z *= s
+      }
 
       // Explicit facing: rotate the root so its +Z (the avatar's forward) aligns
       // with the movement direction. atan2(x, z) is the yaw that maps +Z onto

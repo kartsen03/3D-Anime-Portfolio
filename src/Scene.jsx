@@ -1,41 +1,40 @@
 import { Suspense, useMemo } from 'react'
 import { makeToonGradient } from './toonGradient'
 import Character from './Character'
+import Island from './Island'
+import Props from './Props'
+import SkyDome, { SUN_POSITION } from './SkyDome'
 
-// The scene contents: lights + a ground plane + the VRM character.
-// Kept separate from App.jsx so rooms and more objects can be dropped in here
-// later without touching the <Canvas> shell.
+// The scene contents: sky + outdoor lighting + the floating island world + the
+// VRM character. Kept separate from App.jsx (which owns the <Canvas> shell and
+// post-processing).
 export default function Scene({ characterRef }) {
-  // Cel-shading ramp for the ENVIRONMENT (ground) only. The character's MToon
-  // materials do their own cel shading, so they don't use this.
+  // Cel-shading ramp shared by the ENVIRONMENT (island + props). The character
+  // uses its own shading, so it doesn't use this.
   const gradientMap = useMemo(() => makeToonGradient(4), [])
 
   return (
     <>
-      {/* Soft ambient fill: lifts the shadow side so it isn't pure black.
-          Kept fairly low so the toon bands stay distinct (too much fill
-          flattens the cel steps into one tone). */}
-      <ambientLight intensity={0.4} />
-      {/* Directional key light: parallel rays from one direction. Its angle vs.
-          the surface normal is what the toon shading quantizes into cel bands
-          (both the ground's MeshToonMaterial and the character's MToon). */}
-      <directionalLight position={[5, 8, 3]} intensity={1.4} />
+      {/* Procedural sky (swap to an equirect image later — see SkyDome.jsx). */}
+      <SkyDome />
 
-      {/* Suspense catches the loader's "still loading" state, so the app renders
-          the rest of the scene instead of erroring while the VRM downloads and
-          parses. fallback is what shows meanwhile (nothing, for now). */}
+      {/* Outdoor lighting. The directional KEY comes from the sun's direction and
+          is strong so the toon bands read clearly; a modest ambient lifts the
+          shadow side without flattening the cel steps. */}
+      <ambientLight intensity={0.5} />
+      <directionalLight position={SUN_POSITION} intensity={1.8} />
+
+      {/* Suspense catches the loaders' "still loading" state while the VRM + FBX
+          download, so the rest of the scene renders immediately. */}
       <Suspense fallback={null}>
-        {/* rootRef is created in App so the follow camera (CameraRig) can read
-            the character's position; we just forward it down. */}
         <Character rootRef={characterRef} />
       </Suspense>
 
-      {/* Ground plane. planeGeometry faces +Z by default, so rotate it -90°
-          about X to make it lie flat (horizontal). */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-        <planeGeometry args={[30, 30]} />
-        <meshToonMaterial color="#bfe3cf" gradientMap={gradientMap} />
-      </mesh>
+      {/* The world: a cel-shaded floating island with a flat walkable top, plus a
+          few decorative props on its rim. Both share the environment gradient
+          map for consistent banding. */}
+      <Island gradientMap={gradientMap} />
+      <Props gradientMap={gradientMap} />
     </>
   )
 }

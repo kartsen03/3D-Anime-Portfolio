@@ -49,14 +49,17 @@ updated at the end of each milestone.
 - M3 — Looping idle animation. DONE
 - M4 — Keyboard movement + walk animation + camera follow. DONE
 - M5 — Character post-processing (bloom/vignette/ACES) + Fresnel rim, Leva-tuned. DONE
-- M6 — First region + one interaction (approach object -> section opens). CURRENT
-- M7 — Remaining regions + real content.
-- M8 — Full post-processing pass + art polish.
-- M9 — Performance optimization + deploy.
+- M6 — Floating island world (flat walkable top, bounds, gradient sky, props). DONE
+- M7 — First region + one interaction (approach object -> section opens). CURRENT
+- M8 — Remaining regions + real content.
+- M9 — Full post-processing pass + art polish (incl. global edge-detection outline).
+- M10 — Performance optimization + deploy.
 
 ## Status
-M5 complete — post-processing (selective bloom + vignette + ACES tone mapping,
-renderer tone mapping OFF) and a Leva-tunable Fresnel rim light on the character.
+M6 complete — the character now lives on a code-built floating ISLAND: flat
+walkable grass top (y=0, so all M4 movement is unchanged), tapering rock spire,
+circular walkable-bounds clamp, gradient sky (swap point for an equirect
+sky.jpg), and a few cel-shaded rim props. M5's post/rim + M1–M4 all intact.
 
 Asset note: the current avatar.vrm uses MeshStandardMaterial, NOT MToon — so the
 character isn't truly cel-shaded and has no MToon rim; the rim is a custom

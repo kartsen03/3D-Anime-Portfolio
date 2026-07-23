@@ -211,6 +211,45 @@ wired to live Leva sliders. The environment/island is deliberately NOT tuned yet
   edge pass outlines the character cleanly AND unifies it with the cel-shaded
   world once the island exists.
 
+## Milestone 6 — floating island world
+
+Replaces the flat test ground with a stylized floating island the character
+lives on. No interactions/section UI yet (that's M7).
+
+- **Built in code, not imported.** `Island.jsx` builds the island from
+  primitives so we fully control the cel material (and dodge the standard-vs-MToon
+  material mismatch that bit the character): a wide, shallow `cylinderGeometry`
+  grass top + a downward `coneGeometry` rock spire, both `MeshToonMaterial` using
+  the shared gradient map (rock uses `flatShading` for low-poly facets).
+- **Flat walkable top (scope decision).** The grass top's face sits at `y = 0`,
+  and the whole top is FLAT. This is deliberate: every M4 assumption (feet at
+  `y = 0`, no terrain-height sampling, no slope walking) still holds, so movement
+  / facing / camera code is unchanged. The island's *shape* is purely visual
+  below the walkable plane.
+- **Shared dimensions (`islandConfig.js`).** `TOP_Y`, `ISLAND_TOP_RADIUS`,
+  `WALKABLE_RADIUS` live in one module so the geometry (Island) and the movement
+  clamp (Character) can't drift. `WALKABLE_RADIUS` (13) < `ISLAND_TOP_RADIUS`
+  (16) leaves a decorative rim ring.
+- **Bounds clamp.** M4's square ground-edge clamp is replaced by a **circular**
+  clamp in `Character`: if a step takes the root past `WALKABLE_RADIUS` from
+  centre, it's pulled straight back onto the circle — so you can't walk off.
+- **Sky (`SkyDome.jsx`).** No `sky.jpg` asset exists, so we render a **gradient**
+  sky (deep-blue zenith → pale horizon) on a big BackSide sphere. We chose a
+  gradient over drei's physically-based `<Sky>` because `<Sky>` renders very
+  bright and blows out to white (and bleeds bloom haze) under our HDR + ACES +
+  Bloom pipeline; a gradient stays below the bloom threshold and reads as a crisp
+  stylized sky. **Swap point:** drop `public/textures/sky.jpg` and replace the
+  body with `<Environment files="/textures/sky.jpg" background />`.
+- **Props (`Props.jsx`).** A few low-poly cel-shaded pines (trunk + stacked
+  cones) and an **instanced** rock cluster (drei `<Instances>` — one geometry +
+  material, many transforms). They're placed on the RIM ring (between
+  `WALKABLE_RADIUS` and `ISLAND_TOP_RADIUS`) at fixed positions, so they're
+  inherently off the walkable path (no collision needed) and stable across
+  reloads.
+- **Lighting.** A strong directional key (`intensity 1.8`) from the sun
+  direction (shared `SUN_POSITION`) so the cel bands read clearly, plus a modest
+  ambient fill (`0.5`).
+
 ## File structure
 
 ```
@@ -225,9 +264,13 @@ portfolio/
 │     └─ walk.fbx            # Mixamo walk clip, "In Place", "Without Skin"
 ├─ src/
 │  ├─ main.jsx              # React entry: createRoot -> <App/>
-│  ├─ App.jsx               # Canvas shell + KeyboardControls + OrbitControls + CameraRig
-│  ├─ Scene.jsx             # scene contents: lights, ground, <Character/>
+│  ├─ App.jsx               # Canvas shell + KeyboardControls + OrbitControls + CameraRig + PostFX
+│  ├─ Scene.jsx             # sky + lighting + island + props + <Character/>
 │  ├─ Character.jsx         # loads VRM + idle/walk FBX; movement, facing, crossfade, rim
+│  ├─ Island.jsx            # code-built floating island (grass top + rock spire)
+│  ├─ Props.jsx             # decorative cel-shaded trees + instanced rocks on the rim
+│  ├─ SkyDome.jsx           # gradient sky dome (swap point for an equirect sky.jpg)
+│  ├─ islandConfig.js       # shared island dimensions (geometry ↔ movement clamp)
 │  ├─ PostFX.jsx            # EffectComposer: Bloom + Vignette + ToneMapping (Leva)
 │  ├─ loadMixamoAnimation.js # Mixamo→VRM bone map + retargeting utility
 │  ├─ toonGradient.js       # builds the cel-shading gradient ramp texture (env)
@@ -241,17 +284,15 @@ portfolio/
 <Leva>                               // control panel — DOM overlay, OUTSIDE the Canvas
 <KeyboardControls map>              // key→action map; context bridged into Canvas
 └─ <Canvas gl={{ toneMapping: NoToneMapping }}>  // renderer tone mapping OFF (composer owns it)
-   ├─ <color attach="background">  // scene.background = warm off-white
-   ├─ <Scene characterRef>
-   │  ├─ <ambientLight>            // soft fill
-   │  ├─ <directionalLight>        // key light
+   ├─ <Scene characterRef>          // (no <color> bg — SkyDome fills the backdrop)
+   │  ├─ <SkyDome>                 // gradient sky on a big BackSide sphere
+   │  ├─ <ambientLight> + <directionalLight>  // outdoor key+fill (sun direction)
    │  ├─ <Suspense fallback={null}>  // waits while the VRM + FBX load
    │  │  └─ <Character rootRef>    // keys→movement/facing/crossfade + Fresnel rim (Leva)
    │  │     └─ <group ref>         // character ROOT — position + yaw written each frame
    │  │        └─ <primitive vrm.scene>  // MeshStandardMaterial; per frame: mixer.update() then vrm.update()
-   │  └─ <mesh> (ground)
-   │     ├─ <planeGeometry> (rotated flat)
-   │     └─ <meshToonMaterial gradientMap>
+   │  ├─ <Island gradientMap>      // flat grass top @ y=0 + rock spire (cel)
+   │  └─ <Props gradientMap>       // rim trees + instanced rocks (cel)
    ├─ <OrbitControls makeDefault target=[0,1,0]>  // drag/zoom; exposed as state.controls
    ├─ <CameraRig characterRef>     // slides target + camera by the root's per-frame delta
    └─ <PostFX>                     // EffectComposer: Bloom → Vignette → ToneMapping (last)
@@ -260,8 +301,8 @@ portfolio/
 ## Rendering & style pipeline
 
 - **Environment cel shading:** `MeshToonMaterial` + 4-step `NearestFilter`
-  gradient map; drei `<Outlines>` (inverted hull, pixel-space thickness) for
-  props. Currently only the ground uses this.
+  gradient map (shared) on the island + props; `flatShading` on rock/foliage for
+  low-poly facets.
 - **Character shading:** the VRM is `MeshStandardMaterial` (PBR), **not** MToon —
   so it is not truly cel-shaded yet; the stylized look comes from lighting. A
   custom view-space **Fresnel rim** is injected via `onBeforeCompile` for the
@@ -274,7 +315,10 @@ portfolio/
   `THREE.AnimationMixer`; idle + walk with a weight crossfade.
 - **Movement/camera:** keyboard, camera-relative, constant speed; explicit
   yaw-toward-heading; OrbitControls that translate to follow the character.
+  Character is clamped to the island's circular walkable disc.
+- **World:** code-built floating island (flat walkable top at y=0 + rock spire),
+  gradient sky, cel-shaded rim props.
 - **Lighting:** directional key + low ambient fill; no shadow maps yet.
-- **Planned:** the island/regions + their aesthetic tuning, a **global
-  edge-detection outline** pass (also outlines the character — see M5), regions +
-  interactions, real content, depth-of-field, mobile performance gating.
+- **Planned:** regions + interactions/section UI (M7), a **global edge-detection
+  outline** pass (also outlines the character — see M5), real content,
+  uneven-terrain walking, depth-of-field, mobile performance gating.

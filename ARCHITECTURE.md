@@ -108,7 +108,44 @@ humanoid (the officially demonstrated three-vrm path). No movement yet.
 - **Facing.** With `rotateVRM0` applied once and the retargeted idle driving the
   hips, the avatar faces +Z (the camera) at zero root rotation, so the wrapper
   `<group>` needs no extra spin. (This depends on the clip's baked forward; M4's
-  movement code will own character orientation.)
+  movement code owns character orientation — see below.)
+
+## Milestone 4 — keyboard walking + follow camera
+
+Keyboard-driven, camera-relative walking with an idle↔walk crossfade, explicit
+facing, and a third-person camera that follows while staying orbit/zoomable. No
+collision/physics yet.
+
+- **Input → movement → facing (all in `Character`'s `useFrame`).**
+  - *Input:* drei `<KeyboardControls>` (wrapping the Canvas in `App`) maps
+    WASD + arrows to named actions; `useKeyboardControls`'s `get()` reads the
+    live state inside the frame loop (no React re-render per keypress).
+  - *Camera-relative movement:* the camera's look direction is flattened to the
+    XZ plane for "forward", and "right" is `forward × up`. Pressed keys sum into
+    a direction that's normalized and applied at a constant `WALK_SPEED · delta`,
+    so "forward" always moves the character away from wherever the camera looks.
+    Position is soft-clamped to the ground's half-size (temporary bound).
+  - *Explicit facing:* the movement code **owns** orientation. Each moving frame
+    it builds a target yaw `atan2(dir.x, dir.z)` (maps the avatar's +Z forward
+    onto the move direction) and `quaternion.rotateTowards` turns the root toward
+    it at a fixed angular speed — never relying on a clip's baked forward. A
+    single `FACING_OFFSET` constant (currently `0`) is the one place to correct a
+    clip whose forward differs.
+- **Idle↔walk crossfade.** `walk.fbx` is loaded + retargeted into a second
+  action on the same mixer. Both actions play continuously; on the moving/stopped
+  transition we `fadeOut` one and `fadeIn` the other over ~0.25 s.
+  Gotcha baked into the code: `fadeIn` ramps *effectiveWeight = baseWeight ×
+  interpolant(0→1)*, so the incoming action's **base weight must be restored to
+  1** first (the inactive clip is parked at base weight 0) or the ramp stays
+  multiplied by zero and nothing shows.
+- **Follow camera (`CameraRig` in `App`).** OrbitControls is kept
+  (`makeDefault`, so it's exposed as `state.controls`) for drag-orbit + zoom.
+  Each frame `CameraRig` adds the character's *per-frame position delta* to both
+  `controls.target` and `camera.position`. Translating the whole rig by the same
+  vector keeps the character centered at a constant distance (same on-screen
+  size) while preserving whatever orbit angle / zoom the user set. The character
+  root's ref is created in `App` and shared with both `Character` and
+  `CameraRig`.
 
 ## File structure
 
@@ -119,12 +156,14 @@ portfolio/
 ├─ package.json
 ├─ public/
 │  ├─ models/avatar.vrm      # the VRM character (served at /models/…)
-│  └─ animations/idle.fbx    # Mixamo idle clip, "Without Skin" (served at /animations/…)
+│  └─ animations/
+│     ├─ idle.fbx            # Mixamo idle clip, "Without Skin"
+│     └─ walk.fbx            # Mixamo walk clip, "In Place", "Without Skin"
 ├─ src/
 │  ├─ main.jsx              # React entry: createRoot -> <App/>
-│  ├─ App.jsx               # <Canvas> shell: renderer, camera, OrbitControls
+│  ├─ App.jsx               # Canvas shell + KeyboardControls + OrbitControls + CameraRig
 │  ├─ Scene.jsx             # scene contents: lights, ground, <Character/>
-│  ├─ Character.jsx         # loads the VRM + FBX, retargets, plays the idle
+│  ├─ Character.jsx         # loads VRM + idle/walk FBX; movement, facing, crossfade
 │  ├─ loadMixamoAnimation.js # Mixamo→VRM bone map + retargeting utility
 │  ├─ toonGradient.js       # builds the cel-shading gradient ramp texture (env)
 │  └─ index.css             # full-height layout so the canvas fills the screen
@@ -134,19 +173,21 @@ portfolio/
 ## Scene graph (current)
 
 ```
-<Canvas>                          // WebGL renderer + camera + THREE.Scene
-├─ <color attach="background">    // scene.background = warm off-white
-├─ <Scene>
-│  ├─ <ambientLight>              // soft fill
-│  ├─ <directionalLight>          // key light (drives the cel bands)
-│  ├─ <Suspense fallback={null}>  // waits while the VRM + FBX load
-│  │  └─ <Character>              // AnimationMixer plays retargeted Mixamo idle
-│  │     └─ <group>              // character root (faces +Z at zero rotation)
-│  │        └─ <primitive vrm.scene>  // MToon; per frame: mixer.update() then vrm.update()
-│  └─ <mesh> (ground)
-│     ├─ <planeGeometry> (rotated flat)
-│     └─ <meshToonMaterial gradientMap>
-└─ <OrbitControls target=[0,1,0]> // camera drag/zoom/pan around chest height
+<KeyboardControls map>              // key→action map; context bridged into Canvas
+└─ <Canvas>                        // WebGL renderer + camera + THREE.Scene
+   ├─ <color attach="background">  // scene.background = warm off-white
+   ├─ <Scene characterRef>
+   │  ├─ <ambientLight>            // soft fill
+   │  ├─ <directionalLight>        // key light (drives the cel bands)
+   │  ├─ <Suspense fallback={null}>  // waits while the VRM + FBX load
+   │  │  └─ <Character rootRef>    // reads keys; drives movement/facing/crossfade
+   │  │     └─ <group ref>         // character ROOT — position + yaw written each frame
+   │  │        └─ <primitive vrm.scene>  // MToon; per frame: mixer.update() then vrm.update()
+   │  └─ <mesh> (ground)
+   │     ├─ <planeGeometry> (rotated flat)
+   │     └─ <meshToonMaterial gradientMap>
+   ├─ <OrbitControls makeDefault target=[0,1,0]>  // drag/zoom; exposed as state.controls
+   └─ <CameraRig characterRef>     // slides target + camera by the root's per-frame delta
 ```
 
 ## Rendering & style pipeline
@@ -157,7 +198,9 @@ portfolio/
 - **Character cel shading:** MToon (built into the VRM) — its own banding and
   outline; no gradient map, no drei `<Outlines>`.
 - **Animation:** Mixamo clips retargeted onto the VRM humanoid, played with
-  `THREE.AnimationMixer`; idle is in place.
+  `THREE.AnimationMixer`; idle + walk with a weight crossfade.
+- **Movement/camera:** keyboard, camera-relative, constant speed; explicit
+  yaw-toward-heading; OrbitControls that translate to follow the character.
 - **Lighting:** directional key + low ambient fill; no shadow maps yet.
-- **Planned:** walk animation + character movement + camera-follow (M4),
-  bloom / post-processing, per-room lighting.
+- **Planned:** aesthetic pass (gradient tuning, bloom via Leva), regions +
+  interactions, real content, full post-processing, per-room lighting.

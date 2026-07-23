@@ -5,7 +5,7 @@ import Character from './Character'
 // The scene contents: lights + a ground plane + the VRM character.
 // Kept separate from App.jsx so rooms and more objects can be dropped in here
 // later without touching the <Canvas> shell.
-export default function Scene() {
+export default function Scene({ characterRef }) {
   // Cel-shading ramp for the ENVIRONMENT (ground) only. The character's MToon
   // materials do their own cel shading, so they don't use this.
   const gradientMap = useMemo(() => makeToonGradient(4), [])
@@ -25,7 +25,9 @@ export default function Scene() {
           the rest of the scene instead of erroring while the VRM downloads and
           parses. fallback is what shows meanwhile (nothing, for now). */}
       <Suspense fallback={null}>
-        <Character />
+        {/* rootRef is created in App so the follow camera (CameraRig) can read
+            the character's position; we just forward it down. */}
+        <Character rootRef={characterRef} />
       </Suspense>
 
       {/* Ground plane. planeGeometry faces +Z by default, so rotate it -90°

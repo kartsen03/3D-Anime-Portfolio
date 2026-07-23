@@ -47,12 +47,14 @@ updated at the end of each milestone.
 - M1 — Scene scaffold: cel-shaded toon object + outline, lights, controls. DONE
 - M2 — Load the VRM avatar. DONE
 - M3 — Looping idle animation. DONE
-- M4 — Keyboard movement + walk animation + camera follow. CURRENT
-- M5 — Aesthetic pass: gradient-map tuning, outlines, first bloom (Leva tuning).
+- M4 — Keyboard movement + walk animation + camera follow. DONE
+- M5 — Aesthetic pass: gradient-map tuning, outlines, first bloom (Leva tuning). CURRENT
 - M6 — First region + one interaction (approach object -> section opens).
 - M7 — Remaining regions + real content.
 - M8 — Full post-processing pass + art polish.
 - M9 — Performance optimization + deploy.
 
 ## Status
-M3 complete — idle animation playing, feet planted, character facing camera.
+M4 complete — keyboard camera-relative walking, idle<->walk crossfade, explicit
+facing, and a following OrbitControls camera. Movement/facing owned by the
+controller in Character.jsx.

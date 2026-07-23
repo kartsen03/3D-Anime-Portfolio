@@ -8,7 +8,7 @@ import Scene from './Scene'
 // so the React tree IS the Three.js scene graph.
 export default function App() {
   return (
-    <Canvas camera={{ position: [4, 3, 6], fov: 50 }}>
+    <Canvas camera={{ position: [0, 1.2, 3], fov: 35 }}>
       {/* attach="background" assigns this color to scene.background — a
           soft warm off-white so the toon shapes read clearly. */}
       <color attach="background" args={['#fdf6ee']} />
@@ -16,8 +16,10 @@ export default function App() {
       <Scene />
 
       {/* OrbitControls: drag to orbit, scroll to zoom, right-drag to pan.
-          enableDamping adds smooth inertia to the camera movement. */}
-      <OrbitControls enableDamping />
+          enableDamping adds smooth inertia. target is the point it orbits
+          around — set to ~chest height so the camera frames the character
+          rather than its feet. */}
+      <OrbitControls enableDamping target={[0, 1, 0]} />
     </Canvas>
   )
 }

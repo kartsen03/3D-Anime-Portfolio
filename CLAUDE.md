@@ -1,65 +1,58 @@
-# CLAUDE.md
+# Portfolio — 3D Anime Gamified Developer Portfolio
 
-Guidance for Claude Code (and humans) working in this repo.
+## Project
+A gamified developer portfolio: a navigable 3D world (floating island,
+Genshin-style cel shading) where a VRM character explores regions that map to
+portfolio sections (About, Projects, Experience, Resume, Contact). Owner is a
+strong programmer but new to web development.
 
-## Project concept
+## Working style
+- Code-first. Keep prose to <=3 sentences unless asked for more.
+- Before any non-trivial or multi-file change, propose a short plan and wait
+  for my OK.
+- Work in small, testable increments; commit after each working step.
+- Comment the WHY of any 3D / graphics / animation code (I'm learning web dev).
 
-A **3D anime-styled developer portfolio**: a navigable 3D world built with
-React Three Fiber where a character explores rooms, each mapping to a portfolio
-section — **About, Projects, Experience, Resume, Contact**.
+## Stack & pinned versions
+- React + React Three Fiber v9
+- three r185
+- @react-three/drei
+- @pixiv/three-vrm v3 — use the standard WebGL MToon path. Do NOT use the
+  WebGPU MToonNodeMaterial / node-material path.
+- Vite 6 (Node is 18.x; don't require Node >= 20 features)
+- Plain JavaScript (not TypeScript)
 
-Aesthetic: **anime / cel-shaded** — toon shading (flat color bands), ink
-outlines (inverted-hull), and bloom. Think a stylized, hand-drawn look, not
-photoreal.
+## Animation pipeline
+- Character animations come from Mixamo (FBX), retargeted onto the VRM
+  humanoid: remap mixamorig bone names -> VRM humanoid bones, reconcile the
+  T-pose/rotation, and scale the hips-position track to this model's hip height
+  (feet must stay planted).
+- Playback via THREE.AnimationMixer.
+- Update order every frame: mixer.update(delta) BEFORE vrm.update(delta).
 
-## Tech stack (use current, non-deprecated APIs)
+## Assets
+- VRM model: public/models/avatar.vrm
+- Mixamo clips: public/animations/*.fbx
 
-- **Vite** (build tool / dev server) — pinned to **v6** because the local Node
-  is 18.16, and Vite 7 requires Node 20.19+.
-- **React 19** + **react-dom 19**
-- **three** (latest)
-- **@react-three/fiber v9** (R3F; requires React 19)
-- **@react-three/drei v10** (helpers; requires R3F v9)
-- **Plain JavaScript** for now. May migrate to TypeScript later — keep code
-  TS-friendly (clear prop shapes, avoid patterns that fight typing).
+## Dev notes
+- Dev runs under React StrictMode, which double-invokes mount/unmount to
+  surface bugs: make effect setup idempotent and cleanup symmetric (put side
+  effects like animation .play()/.stop() in useEffect, not useMemo).
 
-Do **not** use deprecated Three.js patterns (e.g. legacy color-management
-flags, `outputEncoding`, `THREE.Geometry`). Prefer the modern equivalents.
+## Architecture
+See ARCHITECTURE.md for current file structure and how the pieces fit. Keep it
+updated at the end of each milestone.
 
-## Working style (follow strictly)
+## Roadmap
+- M1 — Scene scaffold: cel-shaded toon object + outline, lights, controls. DONE
+- M2 — Load the VRM avatar. DONE
+- M3 — Looping idle animation. DONE
+- M4 — Keyboard movement + walk animation + camera follow. CURRENT
+- M5 — Aesthetic pass: gradient-map tuning, outlines, first bloom (Leva tuning).
+- M6 — First region + one interaction (approach object -> section opens).
+- M7 — Remaining regions + real content.
+- M8 — Full post-processing pass + art polish.
+- M9 — Performance optimization + deploy.
 
-- **Code-first.** Keep prose ≤ 3 sentences unless more is explicitly requested.
-- **Plan before non-trivial or multi-file changes.** Propose a short plan and
-  wait for approval before implementing.
-- **Small, testable increments.** Commit after each working step.
-- **Comment the WHY of web/3D-specific code.** The author is a strong
-  programmer but new to web dev — explain browser/React/Three.js concepts and
-  reasoning, not obvious syntax.
-
-## Commands
-
-```bash
-npm install     # install dependencies
-npm run dev     # start the Vite dev server (http://localhost:5173)
-npm run build   # production build to dist/
-npm run preview # preview the production build locally
-```
-
-## Conventions
-
-- `src/App.jsx` owns the `<Canvas>` shell (renderer, camera, global controls).
-- `src/Scene.jsx` owns scene contents (lights, world, objects). Rooms and the
-  character will be composed in here as they're built.
-- Reusable Three.js helpers (texture/material builders, math) live in small
-  `src/*.js` modules, e.g. `src/toonGradient.js`.
-- Animate by mutating refs inside `useFrame`, not via React state, to avoid
-  re-rendering the React tree every frame.
-- One cel-shading gradient map is built once (memoized) and shared across
-  toon materials.
-
-## Milestones
-
-- **M1 (done): foundation** — Vite + R3F scaffold; a lit scene with a ground
-  plane, a rotating toon-shaded object with an ink outline, and OrbitControls.
-- **M2+ (planned):** character controller, rooms per portfolio section,
-  navigation, bloom/post-processing, content.
+## Status
+M3 complete — idle animation playing, feet planted, character facing camera.

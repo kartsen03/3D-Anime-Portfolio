@@ -133,19 +133,29 @@ collision/physics yet.
     clip whose forward differs.
 - **Idle↔walk crossfade.** `walk.fbx` is loaded + retargeted into a second
   action on the same mixer. Both actions play continuously; on the moving/stopped
-  transition we `fadeOut` one and `fadeIn` the other over ~0.25 s.
-  Gotcha baked into the code: `fadeIn` ramps *effectiveWeight = baseWeight ×
-  interpolant(0→1)*, so the incoming action's **base weight must be restored to
-  1** first (the inactive clip is parked at base weight 0) or the ramp stays
-  multiplied by zero and nothing shows.
+  transition we `fadeOut` one and `fadeIn` the other over ~0.25 s. Two gotchas the
+  code guards against (both bit us during M4):
+  - `fadeIn` ramps *effectiveWeight = baseWeight × interpolant(0→1)*, so the
+    incoming action's **base weight must be restored to 1** first (the inactive
+    clip is parked at base weight 0) or the ramp stays multiplied by zero.
+  - A *completed* `fadeOut` sets the action's `enabled = false`, and `fadeIn`
+    does **not** re-enable it — so the incoming action must be explicitly
+    `enabled = true` again, or after the first stop the avatar sticks in its bind
+    (T-)pose forever. So each transition does `to.enabled = true;
+    to.setEffectiveWeight(1); to.fadeIn(…)`.
 - **Follow camera (`CameraRig` in `App`).** OrbitControls is kept
   (`makeDefault`, so it's exposed as `state.controls`) for drag-orbit + zoom.
-  Each frame `CameraRig` adds the character's *per-frame position delta* to both
-  `controls.target` and `camera.position`. Translating the whole rig by the same
-  vector keeps the character centered at a constant distance (same on-screen
-  size) while preserving whatever orbit angle / zoom the user set. The character
-  root's ref is created in `App` and shared with both `Character` and
-  `CameraRig`.
+  Each frame `CameraRig` sets the desired orbit target to a point ~chest height
+  above the character and slides **both** `controls.target` and `camera.position`
+  by the same delta. Moving them together keeps the character centered at a
+  constant distance (same on-screen size) while preserving the user's orbit
+  angle / zoom. Two robustness details: the target is recomputed from the
+  character's *absolute* position each frame (self-correcting, no drift, survives
+  a ref remount); and because drei's OrbitControls runs its own `update()` at
+  **priority −1** (before this rig, so it `lookAt`s the stale pre-shift target),
+  `CameraRig` calls `controls.update()` again after shifting so the camera
+  actually looks at the character that same frame. The character root's ref is
+  created in `App` and shared with both `Character` and `CameraRig`.
 
 ## File structure
 

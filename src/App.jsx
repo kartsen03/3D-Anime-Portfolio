@@ -4,30 +4,33 @@ import { OrbitControls, KeyboardControls } from '@react-three/drei'
 import * as THREE from 'three'
 import Scene from './Scene'
 
+const TARGET_HEIGHT = 1 // orbit around ~chest height above the character
+const _desired = new THREE.Vector3()
 const _delta = new THREE.Vector3()
 
-// Third-person follow: each frame, shift BOTH the orbit target and the camera
-// by how far the character moved since last frame. Translating them together
-// keeps the character centered while preserving whatever orbit angle / zoom the
-// user set (we never overwrite the camera's offset, only slide the whole rig).
+// Third-person follow. Each frame we set the orbit target to a point at chest
+// height above the character, and slide the CAMERA by the same delta. Moving
+// target and camera together keeps the character centered while preserving the
+// user's orbit angle / zoom (the camera's offset from the target is untouched).
+// We compute from the absolute desired target every frame (rather than
+// accumulating deltas), so it's self-correcting — no drift, and it can't be
+// thrown off if the character ref remounts.
 function CameraRig({ characterRef }) {
-  const prev = useRef(null)
-
   useFrame((state) => {
     const char = characterRef.current
     const controls = state.controls // OrbitControls, exposed via makeDefault
     if (!char || !controls) return
 
-    // First valid frame: record the start position, nothing to follow yet.
-    if (!prev.current) {
-      prev.current = char.position.clone()
-      return
-    }
-
-    _delta.subVectors(char.position, prev.current)
+    _desired.set(char.position.x, char.position.y + TARGET_HEIGHT, char.position.z)
+    _delta.subVectors(_desired, controls.target)
     controls.target.add(_delta)
     state.camera.position.add(_delta)
-    prev.current.copy(char.position)
+
+    // drei's OrbitControls runs its own update() at priority -1, i.e. BEFORE
+    // this rig, so it already did camera.lookAt() using the STALE (pre-shift)
+    // target this frame. Re-run update() now that the target is correct, so the
+    // camera actually looks at the character this frame instead of lagging one.
+    controls.update()
   })
 
   return null

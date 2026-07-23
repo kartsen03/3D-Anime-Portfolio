@@ -152,10 +152,13 @@ export default function Character({ rootRef }) {
       const to = moving ? walkAction : idleAction
       const from = moving ? idleAction : walkAction
       from.fadeOut(CROSSFADE)
-      // fadeIn ramps EFFECTIVE weight = baseWeight × interpolant(0→1). Setup
-      // left the inactive clip at base weight 0 (and a finished fadeOut leaves
-      // it disabled at 0 too), so restore the base to 1 first — otherwise the
-      // ramp is multiplied by 0 and the clip never becomes visible.
+      // A completed fadeOut leaves an action DISABLED at effective weight 0, and
+      // fadeIn neither re-enables it nor touches its base weight. So before
+      // fading the incoming clip back in we must (1) re-enable it and (2) restore
+      // its base weight to 1 — fadeIn ramps EFFECTIVE weight = baseWeight ×
+      // interpolant(0→1), so if either is left at 0 nothing shows and the avatar
+      // snaps to its bind (T-)pose. This is what makes repeated start/stop work.
+      to.enabled = true
       to.setEffectiveWeight(1)
       to.fadeIn(CROSSFADE)
     }

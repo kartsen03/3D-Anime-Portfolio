@@ -139,9 +139,19 @@ export function retargetMixamoAnimation(asset, vrm) {
         ),
       )
     } else if (track instanceof THREE.VectorKeyframeTrack) {
-      // Position track (hips only). Scale to this model, and mirror x/z for VRM0.
+      // Position track (hips only). We keep ONLY the vertical (Y) component — the
+      // up/down bob — scaled to this model's hip height, and ZERO the horizontal
+      // (X/Z) components.
+      //
+      // Why: Mixamo clips (even "in place" ones) can bake forward root motion
+      // into the hips position track — this walk drifts the hips ~1.7 m forward
+      // over one cycle, then snaps back at the loop. Our controller owns
+      // horizontal movement (it translates the root group), so letting the
+      // animation ALSO translate the hips means the body races ahead of the root
+      // and pops back every cycle. Stripping X/Z leaves the hips centered over
+      // the root; the legs + arms + vertical bob carry the walk's feel.
       const values = Array.from(track.values, (v, i) =>
-        (isVRM0 && i % 3 !== 1 ? -v : v) * hipsPositionScale,
+        i % 3 === 1 ? v * hipsPositionScale : 0,
       )
       tracks.push(
         new THREE.VectorKeyframeTrack(

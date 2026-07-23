@@ -131,6 +131,14 @@ collision/physics yet.
     it at a fixed angular speed — never relying on a clip's baked forward. A
     single `FACING_OFFSET` constant (currently `0`) is the one place to correct a
     clip whose forward differs.
+  - *No baked root motion:* because the controller owns horizontal position, the
+    retargeting (`loadMixamoAnimation.js`) keeps only the **vertical (Y)**
+    component of the hips position track and zeros X/Z. Mixamo "in place" clips
+    can still bake forward translation into the hips — this walk drifted the hips
+    ~1.7 m per cycle and snapped back at the loop, which read as the *body*
+    popping every ~2 steps (the camera, following the root, was fine). Stripping
+    X/Z leaves the hips centered over the root; `WALK_SPEED` (~1.7 m/s) is tuned
+    to the clip's own stride so the feet don't slide.
 - **Idle↔walk crossfade.** `walk.fbx` is loaded + retargeted into a second
   action on the same mixer. Both actions play continuously; on the moving/stopped
   transition we `fadeOut` one and `fadeIn` the other over ~0.25 s. Two gotchas the

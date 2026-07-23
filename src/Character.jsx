@@ -12,7 +12,10 @@ const IDLE_URL = '/animations/idle.fbx'
 const WALK_URL = '/animations/walk.fbx'
 
 // --- Movement tuning ---
-const WALK_SPEED = 1.8 // metres/second across the ground
+// metres/second across the ground. Tuned to roughly match the walk clip's own
+// stride pace (~1.7 m per ~1.03s cycle) so the feet don't visibly slide now
+// that the clip's baked forward motion is stripped (see loadMixamoAnimation).
+const WALK_SPEED = 1.7
 const TURN_RATE = 10 // radians/second the character rotates toward its heading
 const CROSSFADE = 0.25 // seconds to blend idle <-> walk
 const GROUND_HALF = 14 // soft bound (ground plane is 30×30) — temporary until the island exists

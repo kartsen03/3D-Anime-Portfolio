@@ -1,0 +1,13 @@
+/* The R3F <Canvas> fills its parent element. For it to fill the screen, the
+   whole chain from <html> down to #root must be full-height with no margin. */
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  /* Prevent scrollbars from the full-bleed canvas. */
+  overflow: hidden;
+}

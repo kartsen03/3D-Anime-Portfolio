@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useLoader } from '@react-three/fiber'
 import { useKeyboardControls } from '@react-three/drei'
+import { useControls } from 'leva'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
@@ -78,6 +79,86 @@ export default function Character({ rootRef }) {
 
     return vrm
   }, [gltf])
+
+  // Collect the character's materials once (deduped). This VRM was exported with
+  // MeshStandardMaterial rather than MToon, so there are no built-in MToon rim
+  // uniforms — instead we inject our own view-space Fresnel rim into each
+  // material's shader (below). The rim applies to all materials for a
+  // whole-silhouette edge glow.
+  const rimMaterials = useMemo(() => {
+    const set = new Set()
+    vrm.scene.traverse((obj) => {
+      if (!obj.material) return
+      const list = Array.isArray(obj.material) ? obj.material : [obj.material]
+      for (const m of list) set.add(m)
+    })
+    return [...set]
+  }, [vrm])
+
+  // Shared uniform objects injected into every character material. Because all
+  // the materials reference the SAME uniform objects, updating a .value here
+  // updates the rim on all of them at once.
+  const rimUniforms = useMemo(
+    () => ({
+      uRimColor: { value: new THREE.Color() }, // HDR (colour × intensity)
+      uRimPower: { value: 4 }, // fresnel exponent: higher = tighter edge
+      uRimMix: { value: 0.2 }, // 0 = rim always on; 1 = rim only where lit
+    }),
+    [],
+  )
+
+  // Inject a Fresnel rim term into each material's compiled shader ONCE. We
+  // don't have MToon's parametric rim on this model, so we add our own via
+  // onBeforeCompile (which lets you edit three's built-in shader source):
+  //  - Fresnel = grazing-angle term, bright along the silhouette where the
+  //    surface normal turns away from the view direction.
+  //  - We add it just before <tonemapping_fragment>, so the rim is in LINEAR
+  //    HDR (renderer tone mapping is off) and the Bloom pass can catch it.
+  //  - `mix` gates the rim by how lit the fragment already is (approximated by
+  //    its luminance), mirroring MToon's rimLightingMix: 0 = glow everywhere,
+  //    1 = glow only on already-lit areas.
+  useEffect(() => {
+    for (const m of rimMaterials) {
+      m.onBeforeCompile = (shader) => {
+        shader.uniforms.uRimColor = rimUniforms.uRimColor
+        shader.uniforms.uRimPower = rimUniforms.uRimPower
+        shader.uniforms.uRimMix = rimUniforms.uRimMix
+        shader.fragmentShader = shader.fragmentShader
+          .replace(
+            '#include <common>',
+            '#include <common>\nuniform vec3 uRimColor;\nuniform float uRimPower;\nuniform float uRimMix;',
+          )
+          .replace(
+            '#include <tonemapping_fragment>',
+            [
+              'float rimFresnel = pow( clamp( 1.0 - dot( normal, normalize( vViewPosition ) ), 0.0, 1.0 ), uRimPower );',
+              'float rimLum = dot( gl_FragColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) );',
+              'float rimGate = mix( 1.0, rimLum, uRimMix );',
+              'gl_FragColor.rgb += uRimColor * rimFresnel * rimGate;',
+              '#include <tonemapping_fragment>',
+            ].join('\n'),
+          )
+      }
+      m.needsUpdate = true // force a recompile so the injection takes effect
+    }
+  }, [rimMaterials, rimUniforms])
+
+  // Leva-tunable rim. `intensity` multiplies the colour into HDR (> 1.0) so the
+  // Bloom pass (threshold ~1.0) catches the silhouette as a glow.
+  const rim = useControls('Rim', {
+    color: '#bfe9ff',
+    intensity: { value: 2.5, min: 0, max: 8, step: 0.1 },
+    fresnelPower: { value: 4.0, min: 0, max: 16, step: 0.1 },
+    mix: { value: 0.2, min: 0, max: 1, step: 0.01 },
+  })
+
+  // Push slider values into the shared uniforms. Uniform values upload every
+  // frame, so this updates the rim live with no shader recompile.
+  useEffect(() => {
+    rimUniforms.uRimColor.value.set(rim.color).multiplyScalar(rim.intensity)
+    rimUniforms.uRimPower.value = rim.fresnelPower
+    rimUniforms.uRimMix.value = rim.mix
+  }, [rimUniforms, rim.color, rim.intensity, rim.fresnelPower, rim.mix])
 
   // Build the mixer + both actions once. Construction only — playback starts in
   // the effect below. We target vrm.scene because the retargeted tracks address

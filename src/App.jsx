@@ -1,8 +1,10 @@
 import { useMemo, useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, KeyboardControls } from '@react-three/drei'
+import { Leva } from 'leva'
 import * as THREE from 'three'
 import Scene from './Scene'
+import PostFX from './PostFX'
 
 const TARGET_HEIGHT = 1 // orbit around ~chest height above the character
 const _desired = new THREE.Vector3()
@@ -56,21 +58,39 @@ export default function App() {
   )
 
   return (
-    // KeyboardControls wraps the Canvas; R3F bridges its context so components
-    // inside the Canvas can read key state.
-    <KeyboardControls map={keyMap}>
-      <Canvas camera={{ position: [0, 1.2, 3], fov: 35 }}>
-        {/* attach="background" assigns this color to scene.background. */}
-        <color attach="background" args={['#fdf6ee']} />
+    <>
+      {/* Leva's control panel is a DOM overlay, so it lives OUTSIDE the Canvas.
+          useControls() calls (in PostFX and Character) feed this one panel via
+          Leva's global store — no context wiring needed across the Canvas. */}
+      <Leva collapsed={false} />
 
-        <Scene characterRef={characterRef} />
+      {/* KeyboardControls wraps the Canvas; R3F bridges its context so components
+          inside the Canvas can read key state. */}
+      <KeyboardControls map={keyMap}>
+        <Canvas
+          camera={{ position: [0, 1.2, 3], fov: 35 }}
+          // Disable the renderer's built-in tone mapping: the <ToneMapping>
+          // effect at the end of the composer now owns it. If BOTH ran, the
+          // renderer would squeeze HDR into [0,1] before the composer, so Bloom
+          // would have nothing bright to pick up and colours would shift.
+          // outputColorSpace stays SRGB (R3F default) — the composer encodes to
+          // sRGB on output.
+          gl={{ toneMapping: THREE.NoToneMapping }}
+        >
+          {/* attach="background" assigns this color to scene.background. */}
+          <color attach="background" args={['#fdf6ee']} />
 
-        {/* OrbitControls kept for drag-orbit + zoom. makeDefault exposes it as
-            state.controls so CameraRig can slide it. target starts at ~chest
-            height; CameraRig then translates it with the character. */}
-        <OrbitControls makeDefault enableDamping target={[0, 1, 0]} />
-        <CameraRig characterRef={characterRef} />
-      </Canvas>
-    </KeyboardControls>
+          <Scene characterRef={characterRef} />
+
+          {/* OrbitControls kept for drag-orbit + zoom. makeDefault exposes it as
+              state.controls so CameraRig can slide it. target starts at ~chest
+              height; CameraRig then translates it with the character. */}
+          <OrbitControls makeDefault enableDamping target={[0, 1, 0]} />
+          <CameraRig characterRef={characterRef} />
+
+          <PostFX />
+        </Canvas>
+      </KeyboardControls>
+    </>
   )
 }

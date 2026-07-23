@@ -165,6 +165,52 @@ collision/physics yet.
   actually looks at the character that same frame. The character root's ref is
   created in `App` and shared with both `Character` and `CameraRig`.
 
+## Milestone 5 — character post-processing + rim light (Leva-tunable)
+
+A post-processing pass that gives the CHARACTER a Genshin-ish look, every knob
+wired to live Leva sliders. The environment/island is deliberately NOT tuned yet
+(it doesn't exist).
+
+- **Post stack (`PostFX.jsx`).** `<EffectComposer frameBufferType={HalfFloatType}>`
+  wraps the render, in order: `<Bloom>` → `<Vignette>` → `<ToneMapping>`.
+  - **HDR buffer + tone-mapping rule (get this right).** The renderer's own tone
+    mapping is set to `THREE.NoToneMapping` (in `App`'s `gl` prop) so the
+    `<ToneMapping mode={ACES_FILMIC}>` effect — which MUST be the **last** effect
+    — owns it. If the renderer also tone-mapped, it would squeeze HDR into [0,1]
+    *before* the composer, so Bloom would have nothing bright to grab and colours
+    would shift. `frameBufferType = HalfFloatType` gives the composer a float
+    (HDR) buffer so values > 1 survive for Bloom. `outputColorSpace` stays SRGB
+    (R3F default); the composer encodes to sRGB on output.
+  - **Selective bloom.** A high `luminanceThreshold` (~1.0) + `mipmapBlur` means
+    only pixels brighter than ~1.0 glow — the flat shading stays crisp and only
+    the HDR rim blooms. It's luminance-selective, not the per-object
+    `SelectiveBloom` component.
+  - **No normal pass:** in @react-three/postprocessing v3 the normal pass is
+    opt-in (`enableNormalPass`), off by default — nothing here needs it.
+- **Character rim light (`Character.jsx`).** IMPORTANT: this VRM was exported
+  with **`MeshStandardMaterial`, not MToon**, so there are no MToon parametric-rim
+  uniforms (and the character isn't truly cel-shaded — the look comes from
+  lighting). Instead we inject a **view-space Fresnel rim** into each material's
+  compiled shader via `onBeforeCompile`: `rim = pow(1 - dot(normal, viewDir),
+  fresnelPower)`, added just before `<tonemapping_fragment>` so it's in linear
+  HDR for Bloom to catch. The rim colour is pushed into HDR (colour × `intensity`
+  > 1.0) so Bloom sees it. All materials share the same injected uniform objects,
+  so the Leva sliders update every material at once (uniform values upload each
+  frame — no recompile). Leva **Rim** folder: `color`, `intensity`,
+  `fresnelPower`, `mix` (0 = glow all around; 1 = glow only where already lit).
+- **Leva.** Panel is a DOM overlay outside the Canvas; `useControls` in `PostFX`
+  (Bloom/Vignette folders) and `Character` (Rim folder) feed one panel via Leva's
+  global store — no context wiring across the Canvas boundary.
+- **Version note.** `postprocessing@6.37` peer-requires `three < 0.181` but we
+  run three r185; installed with `--legacy-peer-deps`. Verified working at
+  runtime — revisit if postprocessing widens its range or issues appear.
+- **Character outline is intentionally deferred**, not dropped. It will come from
+  a later **global screen-space edge-detection** post pass, not a per-character
+  inverted-hull outline. An inverted hull is awkward on an animated *skinned*
+  character (the outline shell has to follow the skinning), whereas a screen-space
+  edge pass outlines the character cleanly AND unifies it with the cel-shaded
+  world once the island exists.
+
 ## File structure
 
 ```
@@ -181,7 +227,8 @@ portfolio/
 │  ├─ main.jsx              # React entry: createRoot -> <App/>
 │  ├─ App.jsx               # Canvas shell + KeyboardControls + OrbitControls + CameraRig
 │  ├─ Scene.jsx             # scene contents: lights, ground, <Character/>
-│  ├─ Character.jsx         # loads VRM + idle/walk FBX; movement, facing, crossfade
+│  ├─ Character.jsx         # loads VRM + idle/walk FBX; movement, facing, crossfade, rim
+│  ├─ PostFX.jsx            # EffectComposer: Bloom + Vignette + ToneMapping (Leva)
 │  ├─ loadMixamoAnimation.js # Mixamo→VRM bone map + retargeting utility
 │  ├─ toonGradient.js       # builds the cel-shading gradient ramp texture (env)
 │  └─ index.css             # full-height layout so the canvas fills the screen
@@ -191,21 +238,23 @@ portfolio/
 ## Scene graph (current)
 
 ```
+<Leva>                               // control panel — DOM overlay, OUTSIDE the Canvas
 <KeyboardControls map>              // key→action map; context bridged into Canvas
-└─ <Canvas>                        // WebGL renderer + camera + THREE.Scene
+└─ <Canvas gl={{ toneMapping: NoToneMapping }}>  // renderer tone mapping OFF (composer owns it)
    ├─ <color attach="background">  // scene.background = warm off-white
    ├─ <Scene characterRef>
    │  ├─ <ambientLight>            // soft fill
-   │  ├─ <directionalLight>        // key light (drives the cel bands)
+   │  ├─ <directionalLight>        // key light
    │  ├─ <Suspense fallback={null}>  // waits while the VRM + FBX load
-   │  │  └─ <Character rootRef>    // reads keys; drives movement/facing/crossfade
+   │  │  └─ <Character rootRef>    // keys→movement/facing/crossfade + Fresnel rim (Leva)
    │  │     └─ <group ref>         // character ROOT — position + yaw written each frame
-   │  │        └─ <primitive vrm.scene>  // MToon; per frame: mixer.update() then vrm.update()
+   │  │        └─ <primitive vrm.scene>  // MeshStandardMaterial; per frame: mixer.update() then vrm.update()
    │  └─ <mesh> (ground)
    │     ├─ <planeGeometry> (rotated flat)
    │     └─ <meshToonMaterial gradientMap>
    ├─ <OrbitControls makeDefault target=[0,1,0]>  // drag/zoom; exposed as state.controls
-   └─ <CameraRig characterRef>     // slides target + camera by the root's per-frame delta
+   ├─ <CameraRig characterRef>     // slides target + camera by the root's per-frame delta
+   └─ <PostFX>                     // EffectComposer: Bloom → Vignette → ToneMapping (last)
 ```
 
 ## Rendering & style pipeline
@@ -213,12 +262,19 @@ portfolio/
 - **Environment cel shading:** `MeshToonMaterial` + 4-step `NearestFilter`
   gradient map; drei `<Outlines>` (inverted hull, pixel-space thickness) for
   props. Currently only the ground uses this.
-- **Character cel shading:** MToon (built into the VRM) — its own banding and
-  outline; no gradient map, no drei `<Outlines>`.
+- **Character shading:** the VRM is `MeshStandardMaterial` (PBR), **not** MToon —
+  so it is not truly cel-shaded yet; the stylized look comes from lighting. A
+  custom view-space **Fresnel rim** is injected via `onBeforeCompile` for the
+  edge glow. (Swapping to an MToon VRM later would give real cel bands + a
+  built-in outline.)
+- **Post-processing:** `EffectComposer` (HDR HalfFloat buffer) → selective Bloom
+  (luminance ~1.0 + mipmapBlur) → Vignette → ACES ToneMapping (last). Renderer
+  tone mapping is `NoToneMapping` so the effect owns it. All Leva-tunable.
 - **Animation:** Mixamo clips retargeted onto the VRM humanoid, played with
   `THREE.AnimationMixer`; idle + walk with a weight crossfade.
 - **Movement/camera:** keyboard, camera-relative, constant speed; explicit
   yaw-toward-heading; OrbitControls that translate to follow the character.
 - **Lighting:** directional key + low ambient fill; no shadow maps yet.
-- **Planned:** aesthetic pass (gradient tuning, bloom via Leva), regions +
-  interactions, real content, full post-processing, per-room lighting.
+- **Planned:** the island/regions + their aesthetic tuning, a **global
+  edge-detection outline** pass (also outlines the character — see M5), regions +
+  interactions, real content, depth-of-field, mobile performance gating.

@@ -48,13 +48,19 @@ updated at the end of each milestone.
 - M2 — Load the VRM avatar. DONE
 - M3 — Looping idle animation. DONE
 - M4 — Keyboard movement + walk animation + camera follow. DONE
-- M5 — Aesthetic pass: gradient-map tuning, outlines, first bloom (Leva tuning). CURRENT
-- M6 — First region + one interaction (approach object -> section opens).
+- M5 — Character post-processing (bloom/vignette/ACES) + Fresnel rim, Leva-tuned. DONE
+- M6 — First region + one interaction (approach object -> section opens). CURRENT
 - M7 — Remaining regions + real content.
 - M8 — Full post-processing pass + art polish.
 - M9 — Performance optimization + deploy.
 
 ## Status
-M4 complete — keyboard camera-relative walking, idle<->walk crossfade, explicit
-facing, and a following OrbitControls camera. Movement/facing owned by the
-controller in Character.jsx.
+M5 complete — post-processing (selective bloom + vignette + ACES tone mapping,
+renderer tone mapping OFF) and a Leva-tunable Fresnel rim light on the character.
+
+Asset note: the current avatar.vrm uses MeshStandardMaterial, NOT MToon — so the
+character isn't truly cel-shaded and has no MToon rim; the rim is a custom
+Fresnel term injected via onBeforeCompile. For the real Genshin look later, swap
+in an MToon-based VRM (e.g. VRoid Studio export). Character outline is deferred
+to a future global screen-space edge-detection pass (better than inverted-hull
+on a skinned character).

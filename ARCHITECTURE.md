@@ -58,35 +58,76 @@ the ground and facing the camera. No animation or movement yet.
   are for the ground/props only. (We use the standard WebGL MToon, not the
   WebGPU node-material path.)
 - **Facing & orientation.** VRM 0.x avatars face +Z, VRM 1.0 face -Z.
-  `VRMUtils.rotateVRM0(vrm)` normalizes 0.x models to the -Z baseline; a wrapper
-  `<group rotation={[0, π, 0]}>` then turns that toward the +Z camera — correct
-  for either VRM version.
+  `VRMUtils.rotateVRM0(vrm)` normalizes 0.x models to the -Z baseline. (Once the
+  M3 idle animation drives the hips, it reorients the avatar toward the +Z
+  camera on its own — see M3 "Facing".)
 - **Per-frame update is required.** `vrm.update(delta)` must run every frame
   (via `useFrame`) or spring bones and expressions never advance/initialize.
 - **Async loading.** `useLoader` suspends the component while the ~8 MB file
   downloads/parses, so `<Character>` sits inside a `<Suspense>` boundary; the
   rest of the scene renders immediately and the fallback shows until it's ready.
-- **Trivial optimizations.** `VRMUtils.removeUnnecessaryVertices` and
-  `VRMUtils.combineSkeletons` (the v3 successor to `removeUnnecessaryJoints`)
-  run once after load. Per-object `frustumCulled = false` avoids VRM meshes
-  wrongly disappearing at some camera angles.
+- **One-shot, idempotent prep.** The `VRMUtils` calls
+  (`removeUnnecessaryVertices`, `combineSkeletons` — the v3 successor to
+  `removeUnnecessaryJoints`) and `rotateVRM0` **mutate the model in place and
+  are not idempotent** (rotateVRM0 spins 180° *every* call, so an even number of
+  runs cancels out and the avatar faces backwards). `useLoader` caches the model
+  and React StrictMode mounts twice in dev, so prep is guarded by a
+  `scene.userData.prepared` flag to run exactly once. Per-object
+  `frustumCulled = false` also avoids VRM meshes wrongly disappearing at some
+  camera angles.
+
+## Milestone 3 — looping idle animation
+
+Replaces the T-pose with a looping idle, retargeting a Mixamo clip onto the VRM
+humanoid (the officially demonstrated three-vrm path). No movement yet.
+
+- **Why retargeting is needed.** Mixamo clips are authored for Mixamo's own
+  skeleton (`mixamorigHips`, …); the VRM uses standardized humanoid bone names.
+  `loadMixamoAnimation.js` remaps the bone names (`mixamoVRMRigMap`) and, per
+  keyframe, reconciles the two rigs' rest poses:
+  `newRotation = parentRestWorld · mixamoRotation · restWorldⁿ¹`. VRM 0.x also
+  needs its mirrored axes flipped.
+- **Hips-height scaling (the #1 retargeting bug).** Only the hips carry a
+  position track, authored at the source rig's scale. It's multiplied by
+  `vrmHipsHeight / motionHipsHeight` so the feet stay planted instead of the
+  character sinking into or floating above the ground.
+- **Loaded via useLoader, retargeted purely.** The FBX is loaded with
+  `useLoader(FBXLoader, …)` (async + Suspense + caching, same as the VRM);
+  `retargetMixamoAnimation(asset, vrm)` is a pure sync transform on the loaded
+  asset that **builds fresh keyframe arrays** rather than mutating the cached
+  source (StrictMode renders twice — in-place mutation would double-apply).
+- **Playback via AnimationMixer.** A `THREE.AnimationMixer(vrm.scene)` plays the
+  retargeted clip (loops by default). It targets `vrm.scene` because the tracks
+  address the VRM's *normalized* humanoid bones, which live in that subtree.
+  `.play()` runs in a `useEffect` (not the memo) with a symmetric
+  `.stop()` cleanup, so it survives StrictMode's mount→unmount→mount.
+- **Update order matters.** Each frame runs `mixer.update(delta)` **then**
+  `vrm.update(delta)`: the mixer poses the normalized humanoid bones, then
+  `vrm.update` propagates that pose to the render skeleton and advances spring
+  bones/expressions.
+- **Facing.** With `rotateVRM0` applied once and the retargeted idle driving the
+  hips, the avatar faces +Z (the camera) at zero root rotation, so the wrapper
+  `<group>` needs no extra spin. (This depends on the clip's baked forward; M4's
+  movement code will own character orientation.)
 
 ## File structure
 
 ```
 portfolio/
-├─ index.html          # HTML entry; mounts React into #root
-├─ vite.config.js      # Vite + React plugin config
+├─ index.html               # HTML entry; mounts React into #root
+├─ vite.config.js           # Vite + React plugin config
 ├─ package.json
 ├─ public/
-│  └─ models/avatar.vrm  # the VRM character (static asset served at /models/…)
+│  ├─ models/avatar.vrm      # the VRM character (served at /models/…)
+│  └─ animations/idle.fbx    # Mixamo idle clip, "Without Skin" (served at /animations/…)
 ├─ src/
-│  ├─ main.jsx         # React entry: createRoot -> <App/>
-│  ├─ App.jsx          # <Canvas> shell: renderer, camera, OrbitControls
-│  ├─ Scene.jsx        # scene contents: lights, ground, <Character/>
-│  ├─ Character.jsx    # loads + renders the VRM avatar
-│  ├─ toonGradient.js  # builds the cel-shading gradient ramp texture (env)
-│  └─ index.css        # full-height layout so the canvas fills the screen
+│  ├─ main.jsx              # React entry: createRoot -> <App/>
+│  ├─ App.jsx               # <Canvas> shell: renderer, camera, OrbitControls
+│  ├─ Scene.jsx             # scene contents: lights, ground, <Character/>
+│  ├─ Character.jsx         # loads the VRM + FBX, retargets, plays the idle
+│  ├─ loadMixamoAnimation.js # Mixamo→VRM bone map + retargeting utility
+│  ├─ toonGradient.js       # builds the cel-shading gradient ramp texture (env)
+│  └─ index.css             # full-height layout so the canvas fills the screen
 └─ CLAUDE.md / ARCHITECTURE.md
 ```
 
@@ -98,10 +139,10 @@ portfolio/
 ├─ <Scene>
 │  ├─ <ambientLight>              // soft fill
 │  ├─ <directionalLight>          // key light (drives the cel bands)
-│  ├─ <Suspense fallback={null}>  // waits while the VRM loads
-│  │  └─ <Character>
-│  │     └─ <group rotation y=π>  // turn avatar to face the +Z camera
-│  │        └─ <primitive vrm.scene>  // MToon materials; vrm.update() per frame
+│  ├─ <Suspense fallback={null}>  // waits while the VRM + FBX load
+│  │  └─ <Character>              // AnimationMixer plays retargeted Mixamo idle
+│  │     └─ <group>              // character root (faces +Z at zero rotation)
+│  │        └─ <primitive vrm.scene>  // MToon; per frame: mixer.update() then vrm.update()
 │  └─ <mesh> (ground)
 │     ├─ <planeGeometry> (rotated flat)
 │     └─ <meshToonMaterial gradientMap>
@@ -115,6 +156,8 @@ portfolio/
   props. Currently only the ground uses this.
 - **Character cel shading:** MToon (built into the VRM) — its own banding and
   outline; no gradient map, no drei `<Outlines>`.
+- **Animation:** Mixamo clips retargeted onto the VRM humanoid, played with
+  `THREE.AnimationMixer`; idle is in place.
 - **Lighting:** directional key + low ambient fill; no shadow maps yet.
-- **Planned:** idle/walk animation (Mixamo retargeting), character movement +
-  camera-follow, bloom / post-processing, per-room lighting.
+- **Planned:** walk animation + character movement + camera-follow (M4),
+  bloom / post-processing, per-room lighting.

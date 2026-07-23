@@ -296,6 +296,44 @@ future sections: walk up → prompt → open panel → read → close → resume
   (`octahedronGeometry`) with HDR `emissive`, so the existing Bloom pass catches
   it as a glow — the world tells you it's interactive before any text appears.
 
+## Milestone 8 — the remaining regions (data-driven)
+
+Adds Projects, Experience, Résumé, and Contact, so all five sections use ONE
+pattern with zero per-region forks.
+
+- **Everything maps over `regionsConfig.js`.** The M7 loop was already generic;
+  M8 just enriches the config shape and adds four entries:
+  `{ id, label, title, markerColor, position, activationRadius, type, content }`.
+  `Regions` maps the array to markers/prompts; `App` maps `activeId → region` for
+  the panel. Adding/removing a section is a config edit — no component changes.
+- **Marker placement.** The five crystals sit on a ~9.5 m circle spaced ~72°
+  apart (all at `y = 0`, inside `WALKABLE_RADIUS`), each a short walk from spawn
+  and from the others, and inside the rim props (`r > 13`). Each has a distinct
+  pastel `markerColor` (cyan/gold/violet/mint/pink) for wayfinding — and, being
+  HDR-emissive, each glows via Bloom.
+- **Multi-region correctness.** The proximity loop compares *squared* distances
+  and keeps the **nearest** region within range, reporting a single `nearId`, so
+  the prompt is always for the closest marker only. `activeId` is a single value,
+  so only **one panel** is open at a time. Opening any panel sets
+  `paused = activeId !== null` (movement off, idle keeps playing); closing
+  resumes — identical to M7, now exercised by all five.
+  (Activation radii don't overlap at this spacing, so "near two at once" is rare,
+  but the nearest-wins rule handles it deterministically regardless.)
+- **Content is DATA.** All copy lives in `regionsConfig.js content` (edit copy
+  without touching components). Shapes: `about {paragraphs[]}`,
+  `projects {projects:[{name,description,tech[],link?}]}`,
+  `experience {items:[{role,org,dates,points[]}]}`, `resume {file}`,
+  `contact {links:[{kind,label,href}]}`.
+- **Per-type panel layouts (`RegionPanel.jsx`).** A `PANELS[type]` map picks one
+  small body renderer per section (About prose · Projects cards + tech-tag pills
+  · Experience timeline · Résumé · Contact links) — the shared card chrome
+  (heading + ✕ + close behaviours) is the same for all. Adding a new layout =
+  one more entry in `PANELS`.
+- **Résumé is self-healing.** The Résumé body HEAD-fetches `content.file` on open:
+  if present it embeds an `<iframe>` + a Download button; if absent it shows a
+  graceful "coming soon" — so dropping `public/resume.pdf` in (or removing it)
+  changes the panel with no code edit.
+
 ## File structure
 
 ```

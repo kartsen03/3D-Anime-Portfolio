@@ -107,8 +107,8 @@ function Marker({ region, gradientMap, showPrompt, canActivate, onActivate }) {
       <mesh ref={crystalRef} position={[0, 1.5, 0]}>
         <octahedronGeometry args={[0.42, 0]} />
         <meshToonMaterial
-          color={region.color}
-          emissive={region.color}
+          color={region.markerColor}
+          emissive={region.markerColor}
           emissiveIntensity={1.6}
           gradientMap={gradientMap}
         />

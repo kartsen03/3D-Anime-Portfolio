@@ -8,7 +8,7 @@ import SkyDome, { SUN_POSITION } from './SkyDome'
 // The scene contents: sky + outdoor lighting + the floating island world + the
 // VRM character. Kept separate from App.jsx (which owns the <Canvas> shell and
 // post-processing).
-export default function Scene({ characterRef }) {
+export default function Scene({ characterRef, paused }) {
   // Cel-shading ramp shared by the ENVIRONMENT (island + props). The character
   // uses its own shading, so it doesn't use this.
   const gradientMap = useMemo(() => makeToonGradient(4), [])
@@ -27,7 +27,7 @@ export default function Scene({ characterRef }) {
       {/* Suspense catches the loaders' "still loading" state while the VRM + FBX
           download, so the rest of the scene renders immediately. */}
       <Suspense fallback={null}>
-        <Character rootRef={characterRef} />
+        <Character rootRef={characterRef} paused={paused} />
       </Suspense>
 
       {/* The world: a cel-shaded floating island with a flat walkable top, plus a

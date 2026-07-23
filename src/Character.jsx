@@ -39,7 +39,7 @@ const _targetQuat = new THREE.Quaternion()
 // movement, explicit facing, and an idle<->walk crossfade. The root <group> ref
 // is owned by the parent (App) so the follow camera can read the character's
 // position.
-export default function Character({ rootRef }) {
+export default function Character({ rootRef, paused = false }) {
   // useLoader suspends until each file is parsed, then caches it by URL. The VRM
   // loader gets VRMLoaderPlugin registered so it parses the VRM extensions and
   // attaches the avatar to gltf.userData.vrm.
@@ -193,22 +193,28 @@ export default function Character({ rootRef }) {
     const root = rootRef.current
     if (!root) return
 
-    const { forward, backward, left, right } = getKeys()
-
-    // Camera-relative basis on the ground plane: the camera's look direction
-    // flattened to XZ is "forward", and its right is forward × up. This makes
-    // "forward" always move the character away from the camera along wherever
-    // it's currently looking, which feels natural as you orbit.
-    state.camera.getWorldDirection(_camDir)
-    _camDir.y = 0
-    _camDir.normalize()
-    _camRight.crossVectors(_camDir, UP).normalize()
-
     _move.set(0, 0, 0)
-    if (forward) _move.add(_camDir)
-    if (backward) _move.sub(_camDir)
-    if (right) _move.add(_camRight)
-    if (left) _move.sub(_camRight)
+
+    // Skip movement input while a region panel is open (paused). _move stays
+    // zero, so below the character crossfades back to idle and holds position —
+    // but the animation updates at the bottom still run, so idle keeps playing.
+    if (!paused) {
+      const { forward, backward, left, right } = getKeys()
+
+      // Camera-relative basis on the ground plane: the camera's look direction
+      // flattened to XZ is "forward", and its right is forward × up. This makes
+      // "forward" always move the character away from the camera along wherever
+      // it's currently looking, which feels natural as you orbit.
+      state.camera.getWorldDirection(_camDir)
+      _camDir.y = 0
+      _camDir.normalize()
+      _camRight.crossVectors(_camDir, UP).normalize()
+
+      if (forward) _move.add(_camDir)
+      if (backward) _move.sub(_camDir)
+      if (right) _move.add(_camRight)
+      if (left) _move.sub(_camRight)
+    }
 
     const moving = _move.lengthSq() > 0
 

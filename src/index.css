@@ -11,3 +11,80 @@ body {
   /* Prevent scrollbars from the full-bleed canvas. */
   overflow: hidden;
 }
+
+/* --- Region interaction UI --- */
+
+/* Floating "press E" cue, bridged onto the 3D marker by drei <Html>.
+   pointer-events: none so it never intercepts a click meant for the marker. */
+.region-prompt {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(20, 24, 40, 0.82);
+  color: #eaf6ff;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  white-space: nowrap;
+  border: 1px solid rgba(190, 233, 255, 0.55);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  user-select: none;
+  pointer-events: none;
+}
+.region-prompt kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(190, 233, 255, 0.9);
+  color: #10233a;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+/* Full-screen dimmed, blurred backdrop behind the section panel. */
+.region-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 22, 38, 0.35);
+  backdrop-filter: blur(4px);
+}
+
+/* The section card: clean, rounded, frosted, readable. */
+.region-panel {
+  position: relative;
+  width: min(560px, 90vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 30px 34px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 24px 60px rgba(10, 16, 40, 0.35);
+  color: #1c2233;
+  font-family: system-ui, sans-serif;
+}
+.region-panel h2 {
+  margin: 0 0 14px;
+  font-size: 1.7rem;
+}
+.region-panel p {
+  margin: 0 0 12px;
+  line-height: 1.65;
+  color: #333a4d;
+}
+.region-panel-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  border: none;
+  background: transparent;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: #667;
+  cursor: pointer;
+}
+.region-panel-close:hover {
+  color: #223;
+}

@@ -1,10 +1,13 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, KeyboardControls } from '@react-three/drei'
 import { Leva } from 'leva'
 import * as THREE from 'three'
 import Scene from './Scene'
 import PostFX from './PostFX'
+import Regions from './Regions'
+import RegionPanel from './RegionPanel'
+import { REGIONS } from './regionsConfig'
 
 const TARGET_HEIGHT = 1 // orbit around ~chest height above the character
 const _desired = new THREE.Vector3()
@@ -45,6 +48,44 @@ export default function App() {
   // needs it, so the ref is created here and shared with both.
   const characterRef = useRef()
 
+  // Region interaction state (App owns it because it's shared across the
+  // Canvas/DOM boundary — the 3D markers read it, and the DOM panel renders it):
+  //  - nearId:   region the character is currently within range of (or null)
+  //  - activeId: region whose panel is open (or null)
+  const [nearId, setNearId] = useState(null)
+  const [activeId, setActiveId] = useState(null)
+  const activeRegion = REGIONS.find((r) => r.id === activeId) ?? null
+  // While a panel is open we pause movement input so the character doesn't
+  // wander off while you read (idle animation keeps playing — see Character).
+  const paused = activeId !== null
+
+  // Refs mirror the latest state so the keydown handler can read current values
+  // without being re-subscribed on every change.
+  const nearIdRef = useRef(null)
+  const activeIdRef = useRef(null)
+  nearIdRef.current = nearId
+  activeIdRef.current = activeId
+
+  // Global keyboard: E opens the nearby region (when none is open), Escape
+  // closes. We use a window listener rather than KeyboardControls because these
+  // are one-shot edge actions (and KeyboardControls doesn't cover Escape).
+  useEffect(() => {
+    const onKey = (e) => {
+      // Ignore keys typed into form fields (e.g. Leva's number inputs).
+      const t = e.target
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) {
+        return
+      }
+      if (e.code === 'Escape' && activeIdRef.current) {
+        setActiveId(null)
+      } else if (e.code === 'KeyE' && !activeIdRef.current && nearIdRef.current) {
+        setActiveId(nearIdRef.current)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   // KeyboardControls maps physical keys to named actions; useKeyboardControls
   // (in Character) reads this map. Memoized so the map identity is stable.
   const keyMap = useMemo(
@@ -79,7 +120,17 @@ export default function App() {
         >
           {/* No <color> background: the procedural <Sky> (in Scene) fills the
               view in every direction, so it owns the backdrop now. */}
-          <Scene characterRef={characterRef} />
+          <Scene characterRef={characterRef} paused={paused} />
+
+          {/* Interactive region markers + proximity prompts. App owns the state;
+              Regions detects proximity and reports it back via the callbacks. */}
+          <Regions
+            characterRef={characterRef}
+            nearId={nearId}
+            activeId={activeId}
+            onNearChange={setNearId}
+            onActivate={setActiveId}
+          />
 
           {/* OrbitControls kept for drag-orbit + zoom. makeDefault exposes it as
               state.controls so CameraRig can slide it. target starts at ~chest
@@ -90,6 +141,10 @@ export default function App() {
           <PostFX />
         </Canvas>
       </KeyboardControls>
+
+      {/* Section panel — a DOM overlay outside the Canvas. Renders when a region
+          is active; Escape is handled above, ✕/backdrop clicks call onClose. */}
+      <RegionPanel region={activeRegion} onClose={() => setActiveId(null)} />
     </>
   )
 }

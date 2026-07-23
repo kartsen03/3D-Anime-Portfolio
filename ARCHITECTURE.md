@@ -250,6 +250,52 @@ lives on. No interactions/section UI yet (that's M7).
   direction (shared `SUN_POSITION`) so the cel bands read clearly, plus a modest
   ambient fill (`0.5`).
 
+## Milestone 7 — first interactive region ("About")
+
+The full interaction loop for ONE region, built as the reusable pattern for all
+future sections: walk up → prompt → open panel → read → close → resume.
+
+- **Region config (`regionsConfig.js`).** A single `REGIONS` array is the source
+  of truth: each entry has `{ id, label, position, activationRadius, color,
+  title, body }`. Adding a section later is ONE more entry — the marker,
+  proximity check, prompt, and panel all `.map()` over this array, so nothing
+  else changes structurally. (Named `regionsConfig.js`, not `regions.js`, to
+  avoid a **case-only filename clash** with `Regions.jsx` — on Windows/macOS the
+  filesystem is case-insensitive and Vite resolves `./regions` ↔ `./Regions`
+  ambiguously, which breaks the build.)
+- **State model.** `App` owns two pieces of React state: `nearId` (region within
+  range, or null) and `activeId` (region whose panel is open, or null). It lives
+  in `App` because it's shared across the Canvas/DOM boundary — the 3D markers
+  and the DOM panel both read it. `paused = activeId !== null`.
+- **Proximity loop (`Regions.jsx`, inside the Canvas).** Each frame it reads the
+  character's position (via the shared `characterRef`) and finds the nearest
+  region within its `activationRadius` (comparing *squared* distances — no
+  `sqrt`). It calls `onNearChange(id|null)` **only when the result changes**
+  (tracked in a ref), so we never `setState` 60×/second.
+- **DOM-over-canvas bridge (drei `<Html>`).** The "press E" prompt is a drei
+  `<Html>` anchored above the marker: drei portals a real DOM node over the
+  canvas and repositions it each frame to the projected 3D point (`center`, no
+  `distanceFactor` = constant on-screen size, reads like UI). It has
+  `pointer-events: none` so it never eats a click meant for the marker. The
+  section **panel**, by contrast, is plain DOM *outside* the Canvas (it's a
+  full-screen overlay, not anchored in 3D).
+- **Open / close.** A `window` keydown listener in `App` handles the one-shot
+  edge actions: **E** opens the nearby region (when none is open), **Escape**
+  closes. (KeyboardControls is for held movement keys; it doesn't do one-shot or
+  Escape, and a form-field guard avoids hijacking typing in Leva.) The marker
+  also has an R3F `onClick` (events bubble from its child meshes to the group),
+  gated on proximity like E. The panel additionally closes via its ✕ button or a
+  backdrop click.
+- **Input pause while open.** `paused` flows `App → Scene → Character`. When
+  paused, `Character` skips reading movement input (the move vector stays zero,
+  so it crossfades back to idle and holds position) — but `mixer.update` /
+  `vrm.update` still run, so the idle keeps playing. OrbitControls stays enabled
+  so you can still look around while reading. Closing the panel flips `paused`
+  back and movement resumes (even mid-keypress).
+- **The interactable glows.** The marker is a floating, bobbing crystal
+  (`octahedronGeometry`) with HDR `emissive`, so the existing Bloom pass catches
+  it as a glow — the world tells you it's interactive before any text appears.
+
 ## File structure
 
 ```
@@ -264,17 +310,20 @@ portfolio/
 │     └─ walk.fbx            # Mixamo walk clip, "In Place", "Without Skin"
 ├─ src/
 │  ├─ main.jsx              # React entry: createRoot -> <App/>
-│  ├─ App.jsx               # Canvas shell + KeyboardControls + OrbitControls + CameraRig + PostFX
+│  ├─ App.jsx               # Canvas shell + KeyboardControls + OrbitControls + CameraRig + PostFX + region state
 │  ├─ Scene.jsx             # sky + lighting + island + props + <Character/>
-│  ├─ Character.jsx         # loads VRM + idle/walk FBX; movement, facing, crossfade, rim
+│  ├─ Character.jsx         # loads VRM + idle/walk FBX; movement, facing, crossfade, rim, input-pause
 │  ├─ Island.jsx            # code-built floating island (grass top + rock spire)
 │  ├─ Props.jsx             # decorative cel-shaded trees + instanced rocks on the rim
 │  ├─ SkyDome.jsx           # gradient sky dome (swap point for an equirect sky.jpg)
 │  ├─ islandConfig.js       # shared island dimensions (geometry ↔ movement clamp)
+│  ├─ Regions.jsx           # region markers + proximity loop + drei <Html> prompts (in Canvas)
+│  ├─ RegionPanel.jsx       # section panel — DOM overlay outside the Canvas
+│  ├─ regionsConfig.js      # REGIONS config array (one entry per interactive section)
 │  ├─ PostFX.jsx            # EffectComposer: Bloom + Vignette + ToneMapping (Leva)
 │  ├─ loadMixamoAnimation.js # Mixamo→VRM bone map + retargeting utility
 │  ├─ toonGradient.js       # builds the cel-shading gradient ramp texture (env)
-│  └─ index.css             # full-height layout so the canvas fills the screen
+│  └─ index.css             # full-height layout + region prompt/panel styles
 └─ CLAUDE.md / ARCHITECTURE.md
 ```
 
@@ -284,18 +333,20 @@ portfolio/
 <Leva>                               // control panel — DOM overlay, OUTSIDE the Canvas
 <KeyboardControls map>              // key→action map; context bridged into Canvas
 └─ <Canvas gl={{ toneMapping: NoToneMapping }}>  // renderer tone mapping OFF (composer owns it)
-   ├─ <Scene characterRef>          // (no <color> bg — SkyDome fills the backdrop)
+   ├─ <Scene characterRef paused>   // (no <color> bg — SkyDome fills the backdrop)
    │  ├─ <SkyDome>                 // gradient sky on a big BackSide sphere
    │  ├─ <ambientLight> + <directionalLight>  // outdoor key+fill (sun direction)
    │  ├─ <Suspense fallback={null}>  // waits while the VRM + FBX load
-   │  │  └─ <Character rootRef>    // keys→movement/facing/crossfade + Fresnel rim (Leva)
+   │  │  └─ <Character rootRef paused>  // keys→movement/facing/crossfade + Fresnel rim; input paused while a panel is open
    │  │     └─ <group ref>         // character ROOT — position + yaw written each frame
    │  │        └─ <primitive vrm.scene>  // MeshStandardMaterial; per frame: mixer.update() then vrm.update()
    │  ├─ <Island gradientMap>      // flat grass top @ y=0 + rock spire (cel)
    │  └─ <Props gradientMap>       // rim trees + instanced rocks (cel)
+   ├─ <Regions characterRef nearId activeId onNearChange onActivate>  // markers + proximity loop + <Html> prompts
    ├─ <OrbitControls makeDefault target=[0,1,0]>  // drag/zoom; exposed as state.controls
    ├─ <CameraRig characterRef>     // slides target + camera by the root's per-frame delta
    └─ <PostFX>                     // EffectComposer: Bloom → Vignette → ToneMapping (last)
+<RegionPanel region onClose>        // section panel — DOM overlay OUTSIDE the Canvas (renders when a region is active)
 ```
 
 ## Rendering & style pipeline

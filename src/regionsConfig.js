@@ -106,7 +106,7 @@ export const REGIONS = [
           description:
             "The world you're exploring: a gamified, cel-shaded 3D portfolio with a walkable VRM character, a custom Fresnel rim-light shader, an HDR bloom post-processing pipeline, Mixamo-to-VRM animation retargeting, and a proximity-based interaction system — engineered from scratch with React Three Fiber and Three.js.",
           tech: ['React', 'React Three Fiber', 'Three.js', 'GLSL', 'Vite'],
-          link: null,
+          link: 'https://github.com/kartsen03/3D-Anime-Portfolio',
         },
       ],
     },

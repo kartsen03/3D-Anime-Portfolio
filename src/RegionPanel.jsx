@@ -46,6 +46,23 @@ function AboutPanel({ content }) {
       {content.paragraphs.map((para, i) => (
         <p key={i}>{para}</p>
       ))}
+
+      {/* Skills: one labelled group per category, each a row of tag pills
+          (reusing the .tech-tags pill style from the Projects cards). */}
+      {content.skills?.length > 0 && (
+        <div className="skill-groups">
+          {content.skills.map((group) => (
+            <div className="skill-group" key={group.category}>
+              <span className="skill-category">{group.category}</span>
+              <ul className="tech-tags">
+                {group.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   )
 }

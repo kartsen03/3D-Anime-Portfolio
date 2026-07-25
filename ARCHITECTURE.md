@@ -325,8 +325,9 @@ pattern with zero per-region forks.
   `experience {items:[{role,org,dates,points[]}]}`, `resume {file}`,
   `contact {links:[{kind,label,href}]}`.
 - **Per-type panel layouts (`RegionPanel.jsx`).** A `PANELS[type]` map picks one
-  small body renderer per section (About prose · Projects cards + tech-tag pills
-  · Experience timeline · Résumé · Contact links) — the shared card chrome
+  small body renderer per section (About prose + skill-pill groups · Projects
+  cards + tech-tag pills · Experience timeline · Résumé · Contact links) — the
+  shared card chrome
   (heading + ✕ + close behaviours) is the same for all. Adding a new layout =
   one more entry in `PANELS`.
 - **Résumé is self-healing.** The Résumé body HEAD-fetches `content.file` on open:

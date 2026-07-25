@@ -107,7 +107,9 @@ export default function App() {
       {/* Leva's control panel is a DOM overlay, so it lives OUTSIDE the Canvas.
           useControls() calls (in PostFX and Character) feed this one panel via
           Leva's global store — no context wiring needed across the Canvas. */}
-      <Leva collapsed={false} />
+      {/* Leva is visible normally; load with ?clean in the URL to hide it for a
+          clean screenshot (e.g. http://localhost:5173/?clean). */}
+      <Leva collapsed={false} hidden={new URLSearchParams(window.location.search).has('clean')} />
 
       {/* KeyboardControls wraps the Canvas; R3F bridges its context so components
           inside the Canvas can read key state. */}

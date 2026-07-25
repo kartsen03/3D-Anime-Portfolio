@@ -358,6 +358,42 @@ Three UX/visual upgrades (supersede the matching M4/M7 descriptions above):
   region's panel *or* closes the open one on **E** (Escape / ✕ / backdrop still
   close). Movement stays paused while any panel is open.
 
+## Milestone 9 — atmospheric + colour polish
+
+Additive "make it feel alive" layer — all Leva-tunable, nothing from M1–M8
+touched. (The global edge-detection outline is deliberately NOT here; it's the
+next milestone.)
+
+- **Depth fog (`Atmosphere.jsx`).** A linear `<fog attach="fog">` (colour matched
+  to the sky's horizon) so distant props / island edges melt gently into the sky
+  — a depth cue, not a fog bank. It's rendered at the **scene root** so `attach`
+  binds to the root scene. `SkyDome`'s material sets `fog={false}` so the sky
+  dome itself stays clean. Leva **Fog** → color / near / far.
+- **Drifting motes (`Atmosphere.jsx`).** drei `<Sparkles>` (a single `Points`
+  object) for Ghibli-style floating pollen above the island. Leva **Sparkles** →
+  count / scale / size / speed / color.
+- **Floating debris (`Debris.jsx`).** One animated **`InstancedMesh`** of small
+  cel-shaded rock chunks in a shell *outside* the walkable radius and mostly
+  *below* the island. A single `useFrame` rewrites all instance matrices (bob +
+  spin) from seeded per-instance data — cheap, and it never clips the character
+  or camera. Leva **Debris** → count (rebuilds the mesh) / speed.
+- **Richer foliage (`Foliage.jsx`, `Props.jsx`).** Two static **`InstancedMesh`**es
+  — hundreds of short grass tufts + colour-varied flower dots (`setColorAt` /
+  instanceColor), seeded so placement is stable, matrices written once in
+  `useLayoutEffect`. Short ground detail sits on the walkable top (decorative,
+  non-colliding); tall items stay on the rim. `Props.jsx` also gains
+  round-canopy trees for silhouette variety alongside the pines.
+- **Colour grade (`PostFX.jsx`).** `<HueSaturation>` + `<BrightnessContrast>`
+  added to the existing composer **after** bloom/vignette and **before**
+  `<ToneMapping>` (which stays last), for a warm saturation lift + gentle
+  contrast. Leva **Grade** → saturation / contrast / brightness / hue.
+- **Minor tuning.** `RUN_SPEED` moved to a Leva **Movement** folder (default
+  ~4.8 m/s); the torii proportions were slimmed and heightened for a more
+  elegant silhouette.
+
+- **Perf note:** every repeated element (grass, flowers, debris, rocks) is a
+  single `InstancedMesh`, so this whole layer adds only a handful of draw calls.
+
 ## File structure
 
 ```
@@ -369,20 +405,24 @@ portfolio/
 │  ├─ models/avatar.vrm      # the VRM character (served at /models/…)
 │  └─ animations/
 │     ├─ idle.fbx            # Mixamo idle clip, "Without Skin"
-│     └─ walk.fbx            # Mixamo walk clip, "In Place", "Without Skin"
+│     ├─ walk.fbx            # Mixamo walk clip, "In Place", "Without Skin"
+│     └─ run.fbx             # Mixamo run clip, "In Place", "Without Skin"
 ├─ src/
 │  ├─ main.jsx              # React entry: createRoot -> <App/>
 │  ├─ App.jsx               # Canvas shell + KeyboardControls + OrbitControls + CameraRig + PostFX + region state
-│  ├─ Scene.jsx             # sky + lighting + island + props + <Character/>
-│  ├─ Character.jsx         # loads VRM + idle/walk FBX; movement, facing, crossfade, rim, input-pause
+│  ├─ Scene.jsx             # sky + atmosphere + lighting + island + props + foliage + debris + <Character/>
+│  ├─ Character.jsx         # loads VRM + idle/walk/run FBX; movement, facing, crossfade, rim, input-pause
 │  ├─ Island.jsx            # code-built floating island (grass top + rock spire)
-│  ├─ Props.jsx             # decorative cel-shaded trees + instanced rocks on the rim
+│  ├─ Props.jsx             # rim trees (pine + round) + instanced rocks (cel)
+│  ├─ Foliage.jsx           # instanced grass tufts + flower dots on the walkable top
+│  ├─ Debris.jsx            # instanced rock chunks drifting around/below the island
+│  ├─ Atmosphere.jsx        # scene fog + drifting <Sparkles> motes (Leva)
 │  ├─ SkyDome.jsx           # gradient sky dome (swap point for an equirect sky.jpg)
 │  ├─ islandConfig.js       # shared island dimensions (geometry ↔ movement clamp)
-│  ├─ Regions.jsx           # region markers + proximity loop + drei <Html> prompts (in Canvas)
+│  ├─ Regions.jsx           # region markers (torii) + proximity loop + drei <Html> prompts
 │  ├─ RegionPanel.jsx       # section panel — DOM overlay outside the Canvas
 │  ├─ regionsConfig.js      # REGIONS config array (one entry per interactive section)
-│  ├─ PostFX.jsx            # EffectComposer: Bloom + Vignette + ToneMapping (Leva)
+│  ├─ PostFX.jsx            # EffectComposer: Bloom + Vignette + colour Grade + ToneMapping (Leva)
 │  ├─ loadMixamoAnimation.js # Mixamo→VRM bone map + retargeting utility
 │  ├─ toonGradient.js       # builds the cel-shading gradient ramp texture (env)
 │  └─ index.css             # full-height layout + region prompt/panel styles
@@ -396,18 +436,21 @@ portfolio/
 <KeyboardControls map>              // key→action map; context bridged into Canvas
 └─ <Canvas gl={{ toneMapping: NoToneMapping }}>  // renderer tone mapping OFF (composer owns it)
    ├─ <Scene characterRef paused>   // (no <color> bg — SkyDome fills the backdrop)
-   │  ├─ <SkyDome>                 // gradient sky on a big BackSide sphere
+   │  ├─ <SkyDome>                 // gradient sky on a big BackSide sphere (fog=false)
+   │  ├─ <Atmosphere>              // <fog attach="fog"> (scene root) + <Sparkles> motes
    │  ├─ <ambientLight> + <directionalLight>  // outdoor key+fill (sun direction)
    │  ├─ <Suspense fallback={null}>  // waits while the VRM + FBX load
    │  │  └─ <Character rootRef paused>  // keys→movement/facing/crossfade + Fresnel rim; input paused while a panel is open
    │  │     └─ <group ref>         // character ROOT — position + yaw written each frame
    │  │        └─ <primitive vrm.scene>  // MeshStandardMaterial; per frame: mixer.update() then vrm.update()
    │  ├─ <Island gradientMap>      // flat grass top @ y=0 + rock spire (cel)
-   │  └─ <Props gradientMap>       // rim trees + instanced rocks (cel)
-   ├─ <Regions characterRef nearId activeId onNearChange onActivate>  // markers + proximity loop + <Html> prompts
+   │  ├─ <Props gradientMap>       // rim trees (pine + round) + instanced rocks (cel)
+   │  ├─ <Foliage gradientMap>     // instanced grass tufts + flowers on the top
+   │  └─ <Debris gradientMap>      // instanced rock chunks drifting around/below
+   ├─ <Regions characterRef nearId activeId onNearChange onActivate>  // torii markers + proximity + <Html>
    ├─ <OrbitControls makeDefault target=[0,1,0]>  // drag/zoom; exposed as state.controls
    ├─ <CameraRig characterRef>     // slides target + camera by the root's per-frame delta
-   └─ <PostFX>                     // EffectComposer: Bloom → Vignette → ToneMapping (last)
+   └─ <PostFX>                     // EffectComposer: Bloom → Vignette → Grade → ToneMapping (last)
 <RegionPanel region onClose>        // section panel — DOM overlay OUTSIDE the Canvas (renders when a region is active)
 ```
 
@@ -422,16 +465,20 @@ portfolio/
   edge glow. (Swapping to an MToon VRM later would give real cel bands + a
   built-in outline.)
 - **Post-processing:** `EffectComposer` (HDR HalfFloat buffer) → selective Bloom
-  (luminance ~1.0 + mipmapBlur) → Vignette → ACES ToneMapping (last). Renderer
-  tone mapping is `NoToneMapping` so the effect owns it. All Leva-tunable.
+  (luminance ~1.0 + mipmapBlur) → Vignette → colour **Grade**
+  (HueSaturation + BrightnessContrast) → ACES ToneMapping (last). Renderer tone
+  mapping is `NoToneMapping` so the effect owns it. All Leva-tunable.
 - **Animation:** Mixamo clips retargeted onto the VRM humanoid, played with
-  `THREE.AnimationMixer`; idle + walk with a weight crossfade.
-- **Movement/camera:** keyboard, camera-relative, constant speed; explicit
+  `THREE.AnimationMixer`; idle / walk / run 3-state weight crossfade.
+- **Movement/camera:** keyboard, camera-relative, walk/sprint speeds; explicit
   yaw-toward-heading; OrbitControls that translate to follow the character.
   Character is clamped to the island's circular walkable disc.
 - **World:** code-built floating island (flat walkable top at y=0 + rock spire),
-  gradient sky, cel-shaded rim props.
+  gradient sky, cel-shaded rim props, instanced ground foliage, drifting
+  instanced sky debris.
+- **Atmosphere:** subtle linear scene fog matched to the horizon (sky dome opts
+  out) + drifting `<Sparkles>` motes.
 - **Lighting:** directional key + low ambient fill; no shadow maps yet.
-- **Planned:** regions + interactions/section UI (M7), a **global edge-detection
-  outline** pass (also outlines the character — see M5), real content,
+- **Planned:** a **global edge-detection outline** pass (also outlines the
+  character — see M5; its own next milestone), real content polish,
   uneven-terrain walking, depth-of-field, mobile performance gating.

@@ -1,4 +1,11 @@
-import { EffectComposer, Bloom, Vignette, ToneMapping } from '@react-three/postprocessing'
+import {
+  EffectComposer,
+  Bloom,
+  Vignette,
+  HueSaturation,
+  BrightnessContrast,
+  ToneMapping,
+} from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
 import { HalfFloatType } from 'three'
 import { useControls } from 'leva'
@@ -29,6 +36,15 @@ export default function PostFX() {
     darkness: { value: 0.5, min: 0, max: 1, step: 0.01 },
     offset: { value: 0.3, min: 0, max: 1, step: 0.01 },
   })
+  // Parametric colour grade for a warm, cohesive anime look. Applied AFTER
+  // bloom/vignette but BEFORE tone mapping (see order below). saturation/
+  // brightness/contrast are −1..1; hue is in radians (leave ~0).
+  const grade = useControls('Grade', {
+    saturation: { value: 0.12, min: -1, max: 1, step: 0.01 },
+    contrast: { value: 0.08, min: -1, max: 1, step: 0.01 },
+    brightness: { value: 0.0, min: -1, max: 1, step: 0.01 },
+    hue: { value: 0.0, min: -Math.PI, max: Math.PI, step: 0.01 },
+  })
 
   return (
     <EffectComposer frameBufferType={HalfFloatType}>
@@ -40,6 +56,13 @@ export default function PostFX() {
         mipmapBlur
       />
       <Vignette darkness={vignette.darkness} offset={vignette.offset} />
+
+      {/* Colour grade — a saturation lift + gentle contrast for the anime look.
+          Comes before ToneMapping so the grade operates on the HDR image and the
+          ACES map still has the final word on the display range. */}
+      <HueSaturation hue={grade.hue} saturation={grade.saturation} />
+      <BrightnessContrast brightness={grade.brightness} contrast={grade.contrast} />
+
       {/* MUST be the last effect in the composer. */}
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
     </EffectComposer>

@@ -63,12 +63,13 @@ export default function Regions({
 }
 
 // --- Torii-gate marker dimensions (metres) ---
+// Tuned tall + slim for a more elegant silhouette.
 const T = {
-  pillarH: 3, // pillar height above ground
-  pillarR: 0.16, // pillar radius (top; bottom slightly wider for a taper)
-  halfSpan: 1.15, // half the distance between the two pillars
-  kasagiY: 3.05, // height of the top (curved) beam
-  nukiY: 2.2, // height of the second (lower) beam
+  pillarH: 3.5, // pillar height above ground
+  pillarR: 0.12, // pillar radius (top; bottom slightly wider for a taper)
+  halfSpan: 1.3, // half the distance between the two pillars
+  kasagiY: 3.6, // height of the top beam
+  nukiY: 2.6, // height of the second (lower) beam
 }
 
 function Marker({ region, gradientMap, showPrompt, canActivate, onActivate }) {
@@ -113,7 +114,7 @@ function Marker({ region, gradientMap, showPrompt, canActivate, onActivate }) {
       {/* Two pillars (slightly wider at the base for a subtle taper). */}
       {[-T.halfSpan, T.halfSpan].map((x) => (
         <mesh key={x} position={[x, T.pillarH / 2, 0]}>
-          <cylinderGeometry args={[T.pillarR, T.pillarR * 1.25, T.pillarH, 12]} />
+          <cylinderGeometry args={[T.pillarR, T.pillarR * 1.3, T.pillarH, 12]} />
           {gateMat}
         </mesh>
       ))}
@@ -122,23 +123,23 @@ function Marker({ region, gradientMap, showPrompt, canActivate, onActivate }) {
           slab above it reads as the classic slight upward curve without needing
           curved geometry. */}
       <mesh position={[0, T.kasagiY, 0]}>
-        <boxGeometry args={[T.halfSpan * 2 + 1.1, 0.26, 0.4]} />
+        <boxGeometry args={[T.halfSpan * 2 + 1.0, 0.22, 0.34]} />
         {gateMat}
       </mesh>
-      <mesh position={[0, T.kasagiY + 0.2, 0]}>
-        <boxGeometry args={[T.halfSpan * 2 + 1.4, 0.14, 0.34]} />
+      <mesh position={[0, T.kasagiY + 0.17, 0]}>
+        <boxGeometry args={[T.halfSpan * 2 + 1.3, 0.11, 0.28]} />
         {gateMat}
       </mesh>
 
       {/* Nuki — the lower cross beam between the pillars. */}
       <mesh position={[0, T.nukiY, 0]}>
-        <boxGeometry args={[T.halfSpan * 2 + 0.3, 0.2, 0.3]} />
+        <boxGeometry args={[T.halfSpan * 2 + 0.25, 0.16, 0.26]} />
         {gateMat}
       </mesh>
 
       {/* Gakuzuka — the little centre post between nuki and kasagi. */}
       <mesh position={[0, (T.nukiY + T.kasagiY) / 2, 0]}>
-        <boxGeometry args={[0.16, T.kasagiY - T.nukiY, 0.22]} />
+        <boxGeometry args={[0.13, T.kasagiY - T.nukiY, 0.2]} />
         {gateMat}
       </mesh>
 

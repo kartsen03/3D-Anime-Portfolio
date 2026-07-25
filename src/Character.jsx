@@ -18,9 +18,8 @@ const RUN_URL = '/animations/run.fbx'
 // metres/second across the ground. WALK is tuned to roughly match the walk
 // clip's own stride pace (~1.7 m per ~1.03s cycle) so the feet don't visibly
 // slide now that each clip's baked forward motion is stripped (see
-// loadMixamoAnimation). RUN is ~2.6× walk so sprinting reaches markers quickly.
+// loadMixamoAnimation). RUN speed is Leva-tunable (see the Movement folder).
 const WALK_SPEED = 1.7
-const RUN_SPEED = 4.5
 const TURN_RATE = 10 // radians/second the character rotates toward its heading
 const CROSSFADE = 0.2 // seconds to blend between idle / walk / run
 
@@ -164,6 +163,12 @@ export default function Character({ rootRef, paused = false }) {
     rimUniforms.uRimMix.value = rim.mix
   }, [rimUniforms, rim.color, rim.intensity, rim.fresnelPower, rim.mix])
 
+  // Sprint speed (Leva-tunable). Walk speed is fixed to the clip stride; run is
+  // free to tune for feel. ~4.8 m/s ≈ 2.8× walk reads as a natural jog.
+  const { runSpeed } = useControls('Movement', {
+    runSpeed: { value: 4.8, min: 2, max: 9, step: 0.1 },
+  })
+
   // Build the mixer + all three locomotion actions once. Construction only —
   // playback starts in the effect below. We target vrm.scene because the
   // retargeted tracks address the VRM's NORMALIZED humanoid bones, which live in
@@ -227,7 +232,7 @@ export default function Character({ rootRef, paused = false }) {
     }
 
     const moving = _move.lengthSq() > 0
-    const speed = sprint ? RUN_SPEED : WALK_SPEED
+    const speed = sprint ? runSpeed : WALK_SPEED
 
     if (moving) {
       _move.normalize()

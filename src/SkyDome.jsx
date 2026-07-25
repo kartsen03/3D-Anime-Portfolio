@@ -25,8 +25,9 @@ export default function SkyDome() {
       <sphereGeometry args={[1, 32, 16]} />
       {/* BackSide = we see the sphere from the inside. depthWrite off so it never
           occludes the world (it's the farthest geometry, so it always renders
-          behind). meshBasicMaterial ignores lights → a constant painted sky. */}
-      <meshBasicMaterial side={THREE.BackSide} depthWrite={false}>
+          behind). meshBasicMaterial ignores lights → a constant painted sky.
+          fog={false} keeps the scene fog off the dome so the sky stays clean. */}
+      <meshBasicMaterial side={THREE.BackSide} depthWrite={false} fog={false}>
         {/* GradientTexture attaches as the material's `map`. On a sphere the UV
             runs bottom(v=0) → top(v=1), so this goes horizon-pale → zenith-blue. */}
         <GradientTexture

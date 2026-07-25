@@ -21,6 +21,13 @@ const TREES = [
   { pos: rimPos(325, RIM - 0.5), scale: 1.0 },
 ]
 
+// Round-canopy trees for silhouette variety alongside the pines.
+const ROUND_TREES = [
+  { pos: rimPos(70, RIM + 0.5), scale: 1.15 },
+  { pos: rimPos(190, RIM - 0.5), scale: 0.95 },
+  { pos: rimPos(290), scale: 1.05 },
+]
+
 const ROCKS = [
   { pos: rimPos(80), scale: 0.8, rot: 0.5 },
   { pos: rimPos(110, RIM + 1), scale: 0.5, rot: 1.2 },
@@ -50,11 +57,35 @@ function Tree({ pos, scale, gradientMap }) {
   )
 }
 
+// A rounded deciduous tree: trunk + a couple of overlapping icosphere blobs for
+// a fuller, softer canopy than the conical pines.
+function RoundTree({ pos, scale, gradientMap }) {
+  return (
+    <group position={pos} scale={scale}>
+      <mesh position={[0, 0.7, 0]}>
+        <cylinderGeometry args={[0.16, 0.22, 1.4, 6]} />
+        <meshToonMaterial color="#6b4a2f" gradientMap={gradientMap} />
+      </mesh>
+      <mesh position={[0, 1.95, 0]}>
+        <icosahedronGeometry args={[0.95, 0]} />
+        <meshToonMaterial color="#4f9e57" gradientMap={gradientMap} flatShading />
+      </mesh>
+      <mesh position={[0.55, 1.6, 0.15]}>
+        <icosahedronGeometry args={[0.55, 0]} />
+        <meshToonMaterial color="#58a862" gradientMap={gradientMap} flatShading />
+      </mesh>
+    </group>
+  )
+}
+
 export default function Props({ gradientMap }) {
   return (
     <group>
       {TREES.map((t, i) => (
         <Tree key={i} pos={t.pos} scale={t.scale} gradientMap={gradientMap} />
+      ))}
+      {ROUND_TREES.map((t, i) => (
+        <RoundTree key={i} pos={t.pos} scale={t.scale} gradientMap={gradientMap} />
       ))}
 
       {/* Rocks via instancing: ONE geometry + material drawn many times with

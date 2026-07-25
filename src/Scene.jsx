@@ -3,6 +3,9 @@ import { makeToonGradient } from './toonGradient'
 import Character from './Character'
 import Island from './Island'
 import Props from './Props'
+import Foliage from './Foliage'
+import Debris from './Debris'
+import Atmosphere from './Atmosphere'
 import SkyDome, { SUN_POSITION } from './SkyDome'
 
 // The scene contents: sky + outdoor lighting + the floating island world + the
@@ -18,6 +21,10 @@ export default function Scene({ characterRef, paused }) {
       {/* Procedural sky (swap to an equirect image later — see SkyDome.jsx). */}
       <SkyDome />
 
+      {/* Depth fog + drifting motes. At the scene root so <fog attach="fog">
+          binds to the root scene. */}
+      <Atmosphere />
+
       {/* Outdoor lighting. The directional KEY comes from the sun's direction and
           is strong so the toon bands read clearly; a modest ambient lifts the
           shadow side without flattening the cel steps. */}
@@ -30,11 +37,13 @@ export default function Scene({ characterRef, paused }) {
         <Character rootRef={characterRef} paused={paused} />
       </Suspense>
 
-      {/* The world: a cel-shaded floating island with a flat walkable top, plus a
-          few decorative props on its rim. Both share the environment gradient
-          map for consistent banding. */}
+      {/* The world: a cel-shaded floating island with a flat walkable top, rim
+          props, dense instanced ground foliage, and drifting instanced sky
+          debris. All share the environment gradient map for consistent banding. */}
       <Island gradientMap={gradientMap} />
       <Props gradientMap={gradientMap} />
+      <Foliage gradientMap={gradientMap} />
+      <Debris gradientMap={gradientMap} />
     </>
   )
 }

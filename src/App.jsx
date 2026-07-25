@@ -102,14 +102,18 @@ export default function App() {
     [],
   )
 
+  // Leva is a DEV tuning panel — hide it in the production build so visitors
+  // don't see it. Escape hatches: ?debug shows it on the live site (for tuning),
+  // ?clean always hides it (used for clean screenshots).
+  const params = new URLSearchParams(window.location.search)
+  const hideLeva = params.has('clean') || (import.meta.env.PROD && !params.has('debug'))
+
   return (
     <>
       {/* Leva's control panel is a DOM overlay, so it lives OUTSIDE the Canvas.
           useControls() calls (in PostFX and Character) feed this one panel via
           Leva's global store — no context wiring needed across the Canvas. */}
-      {/* Leva is visible normally; load with ?clean in the URL to hide it for a
-          clean screenshot (e.g. http://localhost:5173/?clean). */}
-      <Leva collapsed={false} hidden={new URLSearchParams(window.location.search).has('clean')} />
+      <Leva collapsed={false} hidden={hideLeva} />
 
       {/* KeyboardControls wraps the Canvas; R3F bridges its context so components
           inside the Canvas can read key state. */}

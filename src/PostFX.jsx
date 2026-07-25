@@ -9,6 +9,7 @@ import {
 import { ToneMappingMode } from 'postprocessing'
 import { HalfFloatType } from 'three'
 import { useControls } from 'leva'
+import Outline from './OutlineEffect'
 
 // The post-processing stack. It runs AFTER the scene renders each frame.
 //
@@ -45,9 +46,31 @@ export default function PostFX() {
     brightness: { value: 0.0, min: -1, max: 1, step: 0.01 },
     hue: { value: 0.0, min: -Math.PI, max: Math.PI, step: 0.01 },
   })
+  // Global cel outline (custom depth+normal edge effect). The line is very
+  // sensitive to these — depth/normal thresholds trade "catches every crease"
+  // against "clean silhouettes only".
+  const outline = useControls('Outline', {
+    color: '#181018',
+    thickness: { value: 1.2, min: 0.3, max: 4, step: 0.1 }, // neighbour step (≈ px)
+    depthThreshold: { value: 0.7, min: 0.05, max: 5, step: 0.05 }, // silhouette sensitivity
+    normalThreshold: { value: 0.5, min: 0.05, max: 2, step: 0.01 }, // crease sensitivity
+    strength: { value: 1.0, min: 0, max: 1, step: 0.01 }, // line opacity
+  })
 
   return (
-    <EffectComposer frameBufferType={HalfFloatType}>
+    // enableNormalPass renders the scene's view-space normals into a buffer the
+    // outline effect reads (re-enabled here after M5 disabled it — nothing else
+    // needs normals).
+    <EffectComposer frameBufferType={HalfFloatType} enableNormalPass>
+      {/* Outline runs FIRST (right after the scene render) so it inks the raw
+          image; its own convolution pass (CONVOLUTION attribute isolates it). */}
+      <Outline
+        color={outline.color}
+        thickness={outline.thickness}
+        depthThreshold={outline.depthThreshold}
+        normalThreshold={outline.normalThreshold}
+        strength={outline.strength}
+      />
       <Bloom
         intensity={bloom.intensity}
         luminanceThreshold={bloom.luminanceThreshold}

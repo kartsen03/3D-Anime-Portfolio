@@ -25,6 +25,21 @@ const _s = new THREE.Vector3()
 const _c = new THREE.Color()
 const IDENT_Q = new THREE.Quaternion()
 
+// Overwrite a geometry's normals to all point straight up (+Y), matching the
+// ground plane's normal. WHY: the global cel outline (OutlineEffect) inks
+// normal-buffer discontinuities. Hundreds of tiny grass/flower facets would each
+// get outlined → a noisy mess. With ground-matching normals there's no normal
+// edge between the foliage and the ground (and their depth is too shallow to trip
+// the depth edge), so the outline skips them entirely while the rest of the world
+// keeps its lines. Colour shading still looks fine (foliage just lights flat).
+function flattenNormalsUp(geo) {
+  const count = geo.attributes.position.count
+  const arr = new Float32Array(count * 3)
+  for (let i = 0; i < count; i++) arr[i * 3 + 1] = 1 // (0, 1, 0)
+  geo.setAttribute('normal', new THREE.BufferAttribute(arr, 3))
+  return geo
+}
+
 // Dense ground detail on the walkable top: instanced grass tufts + flower dots.
 // Both are SHORT and decorative (non-colliding) — fine to sit on the walkable
 // area. Tall items (trees) stay on the rim (see Props.jsx). Instanced so the
@@ -38,8 +53,13 @@ export default function Foliage({ gradientMap }) {
   const grassGeo = useMemo(() => {
     const g = new THREE.ConeGeometry(0.06, 0.25, 4, 1)
     g.translate(0, 0.125, 0)
-    return g
+    return flattenNormalsUp(g) // keep the outline off the grass (see helper)
   }, [])
+
+  const flowerGeo = useMemo(
+    () => flattenNormalsUp(new THREE.IcosahedronGeometry(0.09, 0)),
+    [],
+  )
 
   // Seeded scatter (uniform over the disc via sqrt-radius).
   const { grass, flowers } = useMemo(() => {
@@ -109,10 +129,9 @@ export default function Foliage({ gradientMap }) {
       {/* Flower dots among the grass. */}
       <instancedMesh
         ref={flowerRef}
-        args={[undefined, undefined, FLOWER_COUNT]}
+        args={[flowerGeo, undefined, FLOWER_COUNT]}
         frustumCulled={false}
       >
-        <icosahedronGeometry args={[0.09, 0]} />
         <meshToonMaterial gradientMap={gradientMap} flatShading />
       </instancedMesh>
     </group>

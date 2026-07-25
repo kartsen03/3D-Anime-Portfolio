@@ -394,6 +394,40 @@ next milestone.)
 - **Perf note:** every repeated element (grass, flowers, debris, rocks) is a
   single `InstancedMesh`, so this whole layer adds only a handful of draw calls.
 
+## Global cel outline (edge-detection post pass)
+
+The last visual layer: one cohesive ink line over the WHOLE scene (character +
+island + props + torii), not per-object hulls.
+
+- **Custom effect (`OutlineEffect.jsx`).** A hand-written `postprocessing.Effect`
+  subclass with inline GLSL3 — NOT drei's `<Outline>` (that's a *selective*
+  highlight for chosen objects). Attributes = `CONVOLUTION | DEPTH`: it samples
+  neighbouring texels and needs the depth buffer. CONVOLUTION also makes
+  @react-three/postprocessing give it its **own EffectPass** (it can't be merged),
+  which is what we want.
+- **Two edge terms.** In the depth `mainImage` variant it (a) linearizes depth
+  (`readDepth` + a near/far formula) and takes a 4-neighbour cross → **depth
+  edge** = silhouettes; and (b) samples the **normal buffer** at the same
+  neighbours (`distance` between normals) → **normal edge** = interior creases.
+  Each is `smoothstep`-thresholded, combined, and `mix`ed as ink over the colour.
+- **Normal pass re-enabled.** `<EffectComposer enableNormalPass>` (re-enabling
+  what M5 turned off — v3's prop is `enableNormalPass`, there is no
+  `disableNormalPass`). The pass renders the scene's view-space normals into a
+  buffer; the effect grabs it via `useContext(EffectComposerContext).normalPass`
+  and feeds `normalPass.texture` in as `uNormalBuffer`.
+- **Placement.** `<Outline>` runs **first** (right after the scene render), before
+  the colour grade; `<ToneMapping>` stays last. Bloom is selective (threshold
+  ~1.0) so the dark lines don't bloom.
+- **Keeping it clean (the noise fix).** Hundreds of tiny flat-shaded grass/flower
+  facets would each get normal-outlined → a mess. `Foliage.jsx` overwrites the
+  grass + flower geometry normals to point straight **up** (matching the ground),
+  so there's no normal edge between foliage and ground — and their depth is too
+  shallow to trip the depth edge — so the outline skips them while everything
+  else keeps its lines. (The colour pass still uses its own material, so foliage
+  shading is unaffected.)
+- Leva **Outline** → color / thickness / depthThreshold / normalThreshold /
+  strength (the line is very sensitive to the thresholds).
+
 ## File structure
 
 ```
@@ -414,7 +448,7 @@ portfolio/
 │  ├─ Character.jsx         # loads VRM + idle/walk/run FBX; movement, facing, crossfade, rim, input-pause
 │  ├─ Island.jsx            # code-built floating island (grass top + rock spire)
 │  ├─ Props.jsx             # rim trees (pine + round) + instanced rocks (cel)
-│  ├─ Foliage.jsx           # instanced grass tufts + flower dots on the walkable top
+│  ├─ Foliage.jsx           # instanced grass tufts + flowers (up-normals so the outline skips them)
 │  ├─ Debris.jsx            # instanced rock chunks drifting around/below the island
 │  ├─ Atmosphere.jsx        # scene fog + drifting <Sparkles> motes (Leva)
 │  ├─ SkyDome.jsx           # gradient sky dome (swap point for an equirect sky.jpg)
@@ -422,7 +456,8 @@ portfolio/
 │  ├─ Regions.jsx           # region markers (torii) + proximity loop + drei <Html> prompts
 │  ├─ RegionPanel.jsx       # section panel — DOM overlay outside the Canvas
 │  ├─ regionsConfig.js      # REGIONS config array (one entry per interactive section)
-│  ├─ PostFX.jsx            # EffectComposer: Bloom + Vignette + colour Grade + ToneMapping (Leva)
+│  ├─ PostFX.jsx            # EffectComposer: Outline + Bloom + Vignette + Grade + ToneMapping (Leva)
+│  ├─ OutlineEffect.jsx     # custom depth+normal edge-detection outline effect (GLSL3)
 │  ├─ loadMixamoAnimation.js # Mixamo→VRM bone map + retargeting utility
 │  ├─ toonGradient.js       # builds the cel-shading gradient ramp texture (env)
 │  └─ index.css             # full-height layout + region prompt/panel styles
@@ -450,7 +485,7 @@ portfolio/
    ├─ <Regions characterRef nearId activeId onNearChange onActivate>  // torii markers + proximity + <Html>
    ├─ <OrbitControls makeDefault target=[0,1,0]>  // drag/zoom; exposed as state.controls
    ├─ <CameraRig characterRef>     // slides target + camera by the root's per-frame delta
-   └─ <PostFX>                     // EffectComposer: Bloom → Vignette → Grade → ToneMapping (last)
+   └─ <PostFX>                     // EffectComposer(enableNormalPass): Outline → Bloom → Vignette → Grade → ToneMapping (last)
 <RegionPanel region onClose>        // section panel — DOM overlay OUTSIDE the Canvas (renders when a region is active)
 ```
 
@@ -464,7 +499,8 @@ portfolio/
   custom view-space **Fresnel rim** is injected via `onBeforeCompile` for the
   edge glow. (Swapping to an MToon VRM later would give real cel bands + a
   built-in outline.)
-- **Post-processing:** `EffectComposer` (HDR HalfFloat buffer) → selective Bloom
+- **Post-processing:** `EffectComposer` (HDR HalfFloat buffer, `enableNormalPass`)
+  → custom **Outline** (depth+normal edge detection) → selective Bloom
   (luminance ~1.0 + mipmapBlur) → Vignette → colour **Grade**
   (HueSaturation + BrightnessContrast) → ACES ToneMapping (last). Renderer tone
   mapping is `NoToneMapping` so the effect owns it. All Leva-tunable.
@@ -478,7 +514,10 @@ portfolio/
   instanced sky debris.
 - **Atmosphere:** subtle linear scene fog matched to the horizon (sky dome opts
   out) + drifting `<Sparkles>` motes.
+- **Outline:** global screen-space **depth+normal edge detection** (custom
+  postprocessing effect, its own convolution pass) — one ink line over character
+  and world; foliage opts out via up-facing normals.
 - **Lighting:** directional key + low ambient fill; no shadow maps yet.
-- **Planned:** a **global edge-detection outline** pass (also outlines the
-  character — see M5; its own next milestone), real content polish,
-  uneven-terrain walking, depth-of-field, mobile performance gating.
+- **Planned:** performance / device gating of the effects + live deploy (final
+  milestone); later — uneven-terrain walking, depth-of-field, an MToon VRM for
+  true cel bands.

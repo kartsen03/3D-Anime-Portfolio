@@ -518,6 +518,26 @@ portfolio/
   postprocessing effect, its own convolution pass) — one ink line over character
   and world; foliage opts out via up-facing normals.
 - **Lighting:** directional key + low ambient fill; no shadow maps yet.
-- **Planned:** performance / device gating of the effects + live deploy (final
-  milestone); later — uneven-terrain walking, depth-of-field, an MToon VRM for
-  true cel bands.
+- **Planned:** performance / device gating of the effects; later —
+  uneven-terrain walking, depth-of-field, an MToon VRM for true cel bands.
+
+## Deployment
+
+Hosted on **Vercel**, auto-deploying on every push to `main`.
+
+- **Root domain → `base: '/'`** in `vite.config.js` (Vite's default, set
+  explicitly). This keeps the absolute asset URLs (`/models/avatar.vrm`,
+  `/animations/*.fbx`, `/resume.pdf`) valid — no subpath base, which would only
+  be needed for a project-path host like GitHub Pages.
+- **`.npmrc` (repo root): `legacy-peer-deps=true`.** Required for CI installs:
+  `postprocessing@6.37` peer-caps `three` at `<0.181` but we run three r185, so a
+  strict `npm install` (as Vercel runs) would fail the peer resolution without
+  this.
+- **Framework:** Vercel auto-detects Vite — build `vite build`, output `dist/` —
+  so no `vercel.json` is needed. There's no client-side routing (the only URL
+  param is `?clean` to hide the Leva panel), so no SPA rewrite is required.
+- **Production build is clean:** `npm run build` succeeds with no errors (only a
+  chunk-size *warning* — the three.js/R3F bundle is ~1.7 MB, ~478 kB gzipped;
+  code-splitting is a future perf task). `npm run preview` serves every asset
+  (VRM, all three FBX clips, résumé PDF) with **no 404s**, and the custom outline
+  shader compiles fine minified.

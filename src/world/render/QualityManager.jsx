@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useThree } from '@react-three/fiber'
 import { PerformanceMonitor } from '@react-three/drei'
 import { useStore } from '../../state/store'
@@ -16,7 +16,18 @@ export default function QualityManager() {
   const quality = useStore((s) => s.quality)
   const tier = useStore((s) => s.tier)
   const setTier = useStore((s) => s.setTier)
+  const phase = useStore((s) => s.phase)
   const settled = useRef(false)
+
+  // Only judge performance once the visitor is actually exploring, and after a short
+  // settling delay: during loading, frames stall on shader compilation and texture
+  // uploads, which would wrongly drag every device down a tier.
+  const [watching, setWatching] = useState(false)
+  useEffect(() => {
+    if (phase !== 'explore') return
+    const t = setTimeout(() => setWatching(true), 1500)
+    return () => clearTimeout(t)
+  }, [phase])
 
   // Initial tier: the visitor's explicit choice, or a guess from the hardware.
   useEffect(() => {
@@ -36,6 +47,7 @@ export default function QualityManager() {
     if (next !== TIERS[i]) setTier(next)
   }
 
+  if (!watching) return null
   return (
     <PerformanceMonitor
       // Samples every 250 ms, decides on the last 10 (2.5 s of evidence).

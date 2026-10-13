@@ -21,7 +21,9 @@ export const QUALITY = {
   medium: {
     dprMax: 1.5,
     msaa: 0,
-    aa: 'smaa',
+    // SMAA measured 2.2 ms of a 9.7 ms frame at 1600×900 on Iris Xe (more than all the
+    // grass); FXAA is a fraction of that, and the ink outlines already keep silhouettes clean.
+    aa: 'fxaa',
     bloomLevels: 5,
     shadowMapSize: 1024,
     density: 0.7,

@@ -1,23 +1,12 @@
 import { Sparkles } from '@react-three/drei'
-import { useControls } from 'leva'
 
 // Atmospheric layer: subtle depth fog + drifting light motes. Rendered at the
 // SCENE ROOT (from Scene.jsx) — important, because <fog attach="fog"> attaches
 // to its parent Object3D, and we want that to be the root scene, not a group.
 export default function Atmosphere() {
-  const fog = useControls('Fog', {
-    color: '#bcd8f0', // matched to the sky's horizon so distance melts into it
-    near: { value: 24, min: 0, max: 100, step: 1 }, // fully clear nearer than this
-    far: { value: 72, min: 10, max: 220, step: 1 }, // fully fogged past this
-  })
+  const fog = { color: '#bcd8f0', near: 24, far: 72 }
 
-  const sparkles = useControls('Sparkles', {
-    count: { value: 90, min: 0, max: 400, step: 10 },
-    scale: { value: 34, min: 5, max: 90, step: 1 }, // size of the distribution box
-    size: { value: 3, min: 0.5, max: 12, step: 0.5 }, // pixel size of each mote
-    speed: { value: 0.3, min: 0, max: 3, step: 0.05 },
-    color: '#ffffff',
-  })
+  const sparkles = { count: 90, scale: 34, size: 3, speed: 0.3, color: '#ffffff' }
 
   return (
     <>

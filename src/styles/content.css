@@ -1,0 +1,353 @@
+/* Section content, shared by the sheets and the Quick view. */
+.body p {
+  margin: 0 0 1em;
+  max-width: 64ch;
+  color: var(--ink-2);
+  font-size: 1rem;
+  line-height: 1.68;
+}
+.body .lede {
+  color: var(--ink);
+  font-size: 1.08rem;
+  line-height: 1.62;
+}
+
+.subhead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2.1em 0 1em;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.subhead::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.plain-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 16px;
+}
+.entry__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+.entry__title {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--ink);
+}
+.entry__title--minor {
+  font-size: 0.96rem;
+  font-weight: 600;
+}
+.entry__meta {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.entry__org {
+  margin-top: 2px;
+  font-size: 0.94rem;
+  color: var(--ink-2);
+}
+.entry__detail {
+  margin-top: 6px;
+  font-size: 0.88rem;
+  color: var(--ink-3);
+  line-height: 1.55;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tags li {
+  padding: 3px 9px;
+  border-radius: 4px;
+  background: var(--tag);
+  color: var(--tag-ink);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.skills {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+}
+.skills__group {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.32fr) 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.skills dt {
+  padding-top: 3px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.skills dd {
+  margin: 0;
+}
+@media (max-width: 520px) {
+  .skills__group {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}
+
+/* Projects */
+.projects {
+  display: grid;
+  gap: 0;
+}
+.project {
+  padding: 26px 0 28px;
+  border-top: 1px solid var(--line);
+}
+.project:first-child {
+  border-top: 0;
+  padding-top: 6px;
+}
+.project__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.badge {
+  padding: 2px 7px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  color: var(--ink-2);
+}
+.project__updated::before {
+  content: '·';
+  margin-right: 12px;
+}
+.project__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.5rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.project__tagline {
+  margin: 4px 0 12px !important;
+  color: var(--ink) !important;
+  font-size: 1rem !important;
+  font-weight: 500;
+}
+.project__desc {
+  font-size: 0.96rem !important;
+}
+.project__facts {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+.project__facts li {
+  position: relative;
+  padding-left: 20px;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.project__facts li::before {
+  /* A small lozenge, echoing the gate's ornament. */
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 0.6em;
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  transform: rotate(45deg);
+}
+.project__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+.project__note {
+  font-size: 0.8rem;
+  color: var(--ink-3);
+}
+.btn--small {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 0.86rem;
+}
+.btn--small .icon {
+  width: 17px;
+  height: 17px;
+}
+
+/* Experience timeline */
+.timeline {
+  position: relative;
+  display: grid;
+  gap: 28px;
+  margin: 0;
+  padding: 4px 0 0 22px;
+  list-style: none;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 10px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--line-2);
+}
+.timeline__item {
+  position: relative;
+}
+.timeline__item::before {
+  content: '';
+  position: absolute;
+  left: -22px;
+  top: 7px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 2px solid var(--accent);
+}
+.timeline__earlier {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line-2);
+}
+.bullets {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+.bullets li {
+  font-size: 0.93rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.bullets li::marker {
+  color: var(--accent);
+}
+
+/* Résumé */
+.resume-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-m);
+  background: var(--paper-2);
+}
+.resume-card__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.15rem;
+}
+.resume-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Contact */
+.contacts {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.contact__link {
+  flex: 1 1 260px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 10px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-m);
+  text-decoration: none;
+  transition:
+    background-color var(--dur-fast) ease,
+    border-color var(--dur-fast) ease;
+}
+.contact__link:hover {
+  background: var(--paper-2);
+  border-color: var(--ink-3);
+}
+.contact__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.contact__text {
+  display: grid;
+}
+.contact__label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.contact__value {
+  font-weight: 600;
+  color: var(--ink);
+  word-break: break-word;
+}

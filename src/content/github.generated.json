@@ -1,0 +1,54 @@
+{
+  "syncedAt": "2026-10-13T21:38:53.985Z",
+  "repos": {
+    "kartsen03/minicompiler": {
+      "pushedAt": "2026-10-05T15:33:54Z",
+      "stars": 0,
+      "language": "C++",
+      "homepage": null,
+      "archived": false
+    },
+    "kartsen03/trial-feasibility-explorer": {
+      "pushedAt": "2026-10-02T00:01:40Z",
+      "stars": 0,
+      "language": "R",
+      "homepage": "https://karthik-sengupta.shinyapps.io/trial-feasibility-explorer/",
+      "archived": false
+    },
+    "kartsen03/battery-rul-prognostics": {
+      "pushedAt": "2026-08-05T22:44:40Z",
+      "stars": 0,
+      "language": "Python",
+      "homepage": null,
+      "archived": false
+    },
+    "kartsen03/validated-study-tracker": {
+      "pushedAt": "2026-10-02T15:23:20Z",
+      "stars": 0,
+      "language": "Python",
+      "homepage": null,
+      "archived": false
+    },
+    "kartsen03/perceptual-quality-lab": {
+      "pushedAt": "2026-07-28T15:27:29Z",
+      "stars": 0,
+      "language": "Python",
+      "homepage": null,
+      "archived": false
+    },
+    "kartsen03/3D-Anime-Portfolio": {
+      "pushedAt": "2026-07-25T07:41:14Z",
+      "stars": 0,
+      "language": "JavaScript",
+      "homepage": "https://karthik-sengupta.vercel.app",
+      "archived": false
+    },
+    "dkumar247/NU-Gemma-hackathon": {
+      "pushedAt": "2026-06-27T17:16:33Z",
+      "stars": 0,
+      "language": "Python",
+      "homepage": null,
+      "archived": false
+    }
+  }
+}

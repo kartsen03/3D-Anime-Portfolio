@@ -1,0 +1,423 @@
+/* Heads-up display over the 3D world. The layer itself ignores the pointer so the world
+   underneath stays draggable and tappable; only real controls take input. */
+.hud {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  color: var(--hud-ink);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--dur-slow) var(--ease-out),
+    visibility 0s linear var(--dur-slow);
+}
+.hud[data-visible='true'] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--dur-slow) var(--ease-out) 200ms;
+}
+
+/* Soft cinematic gradients at the top and bottom edges keep the HUD legible over any sky. */
+.hud__scrim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+.hud__scrim--top {
+  top: 0;
+  height: 150px;
+  background: linear-gradient(to bottom, var(--scrim-top), transparent);
+}
+.hud__scrim--bottom {
+  bottom: 0;
+  height: 210px;
+  background: linear-gradient(to top, var(--scrim-bottom), transparent);
+}
+
+.hud__brand {
+  position: absolute;
+  top: max(20px, env(safe-area-inset-top));
+  left: max(22px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-shadow: var(--hud-shadow);
+}
+.hud__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.22rem;
+  line-height: 1.1;
+  letter-spacing: -0.005em;
+}
+.hud__role {
+  margin: 3px 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hud-ink-2);
+}
+
+.seal {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 5px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.82rem;
+  letter-spacing: 0;
+  text-shadow: none;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 246, 234, 0.5);
+}
+:root[data-theme='twilight'] .seal {
+  color: #fff3e4;
+}
+
+.hud__tools {
+  position: absolute;
+  top: max(18px, env(safe-area-inset-top));
+  right: max(18px, env(safe-area-inset-right));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.icon-btn,
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--hud-border);
+  border-radius: 999px;
+  background: var(--hud-surface);
+  color: var(--hud-ink);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition:
+    background-color var(--dur-fast) ease,
+    transform var(--dur-fast) ease;
+}
+.icon-btn {
+  padding: 0;
+  width: 44px;
+}
+.icon-btn:hover,
+.pill-btn:hover {
+  background: var(--hud-surface-hover);
+}
+.icon-btn:active,
+.pill-btn:active {
+  transform: scale(0.96);
+}
+.hud :focus-visible {
+  outline-color: var(--hud-ink);
+}
+
+/* Settings popover */
+.settings {
+  position: relative;
+}
+.settings__panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(300px, calc(100vw - 32px));
+  padding: 8px 16px 14px;
+  border-radius: var(--radius-m);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 24px 60px -20px rgba(20, 10, 30, 0.55);
+  animation: pop var(--dur) var(--ease-out);
+}
+.choice {
+  margin: 0;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+}
+.choice:last-child {
+  border-bottom: 0;
+}
+.choice legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.choice__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.choice__option {
+  position: relative;
+}
+.choice__option input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.choice__option span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 500;
+  transition:
+    background-color var(--dur-fast) ease,
+    color var(--dur-fast) ease;
+}
+.choice__option input:checked + span {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.choice__option input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.choice__note {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: var(--ink-3);
+}
+
+/* Section bar */
+.hud__nav {
+  position: absolute;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  max-width: calc(100vw - 24px);
+  pointer-events: auto;
+}
+.hud__nav ol {
+  display: flex;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--hud-border);
+  border-radius: 999px;
+  background: var(--hud-surface);
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+}
+.hud__nav ol::-webkit-scrollbar {
+  display: none;
+}
+.hud__nav li {
+  scroll-snap-align: center;
+}
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--hud-ink);
+  white-space: nowrap;
+  cursor: pointer;
+  text-shadow: var(--hud-shadow);
+  transition: background-color var(--dur-fast) ease;
+}
+.chip:hover {
+  background: var(--hud-surface-hover);
+}
+.chip__num {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--hud-ink-2);
+}
+.chip__label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.chip__key {
+  display: none;
+}
+@media (hover: hover) and (min-width: 900px) {
+  .chip__key {
+    display: inline-block;
+    padding: 0 5px;
+    border: 1px solid var(--hud-border);
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    line-height: 1.5;
+    color: var(--hud-ink-2);
+  }
+}
+/* "You are here" and "on the way" markers: a short ink stroke under the label. */
+.chip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: translateX(-50%) scaleX(0);
+  transition: transform var(--dur) var(--ease-out);
+}
+.chip[data-state='here']::after {
+  transform: translateX(-50%) scaleX(1);
+}
+.chip[data-state='travelling']::after {
+  transform: translateX(-50%) scaleX(1);
+  animation: travel 900ms var(--ease-in-out) infinite alternate;
+}
+
+.hud__hint {
+  position: absolute;
+  left: max(22px, env(safe-area-inset-left));
+  bottom: calc(max(18px, env(safe-area-inset-bottom)) + 66px);
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--hud-ink-2);
+  text-shadow: var(--hud-shadow);
+}
+.hud__hint kbd {
+  display: inline-block;
+  min-width: 18px;
+  margin: 0 1px;
+  padding: 0 4px;
+  border: 1px solid var(--hud-border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.64rem;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* Interact prompt, pinned above a landmark by the world each frame. */
+.prompt {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+  pointer-events: none;
+}
+.prompt__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 16px 6px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 14px 36px -14px rgba(20, 10, 30, 0.6);
+  transform: translate(-50%, calc(-100% - 10px)) scale(0.92);
+  opacity: 0;
+  transition:
+    opacity var(--dur) var(--ease-out),
+    transform var(--dur) var(--ease-out);
+}
+.prompt[data-visible='true'] .prompt__btn {
+  opacity: 1;
+  transform: translate(-50%, calc(-100% - 10px)) scale(1);
+  pointer-events: auto;
+}
+.prompt__key {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+.prompt__kicker {
+  margin-right: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--ink-3);
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+@keyframes travel {
+  from {
+    width: 8px;
+  }
+  to {
+    width: 26px;
+  }
+}
+
+@media (max-width: 720px) {
+  .hud__role,
+  .hud__hint {
+    display: none;
+  }
+  .pill-btn span {
+    display: none;
+  }
+  .pill-btn {
+    width: 44px;
+    padding: 0;
+  }
+  .hud__name {
+    font-size: 1.05rem;
+  }
+  .chip {
+    padding: 12px 12px;
+    gap: 6px;
+  }
+  .chip__label {
+    font-size: 0.86rem;
+  }
+}
+@media (max-width: 420px) {
+  .chip__num {
+    display: none;
+  }
+}

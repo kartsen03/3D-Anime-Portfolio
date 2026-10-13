@@ -1,6 +1,5 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { useControls } from 'leva'
 import * as THREE from 'three'
 import { ISLAND_TOP_RADIUS } from './islandConfig'
 
@@ -26,10 +25,8 @@ const _s = new THREE.Vector3()
 // Kept outside the walkable radius and mostly below the top, so they never clip
 // the character or the follow camera.
 export default function Debris({ gradientMap }) {
-  const { count, speed } = useControls('Debris', {
-    count: { value: 40, min: 0, max: 160, step: 5 },
-    speed: { value: 0.5, min: 0, max: 3, step: 0.05 },
-  })
+  const count = 40
+  const speed = 0.5
 
   const meshRef = useRef()
   const timeRef = useRef(0) // accumulated (speed-scaled) time, so speed changes don't jump

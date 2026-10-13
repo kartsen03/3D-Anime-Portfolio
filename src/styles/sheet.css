@@ -1,0 +1,247 @@
+/* Section sheet: side panel on wide screens, bottom sheet on phones. */
+.sheet-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, transparent 35%, rgba(15, 8, 20, 0.18));
+  animation: fade-in var(--dur-slow) var(--ease-out) both;
+}
+.sheet-layer[data-state='leaving'] .sheet-backdrop {
+  animation: fade-out 380ms var(--ease-out) both;
+}
+
+.sheet {
+  --pad: clamp(24px, 3vw, 44px);
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(600px, 44vw);
+  background-color: var(--paper);
+  /* A faint paper grain: an SVG turbulence tile, generated once, no image request. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.08 0 0 0 0 0.12 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  color: var(--ink);
+  box-shadow: var(--sheet-shadow);
+  outline: none;
+  animation: sheet-in-side 520ms var(--ease-out) both;
+}
+.sheet::before {
+  /* The vermilion edge, like the lacquered post of a gate. */
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: var(--accent);
+}
+.sheet-layer[data-state='leaving'] .sheet {
+  animation: sheet-out-side 400ms var(--ease-in-out) both;
+}
+
+.sheet__grip {
+  display: none;
+}
+
+.sheet__head {
+  position: relative;
+  padding: calc(var(--pad) * 0.9) var(--pad) 18px;
+  border-bottom: 1px solid var(--line);
+}
+.sheet__kicker {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.sheet__num {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+.sheet__kanji {
+  margin-left: auto;
+  padding-right: 44px;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.3em;
+  text-transform: none;
+  color: var(--ink-3);
+}
+.sheet__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.9rem, 3.1vw, 2.7rem);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  outline: none;
+}
+.sheet__close {
+  position: absolute;
+  top: calc(var(--pad) * 0.7);
+  right: calc(var(--pad) * 0.7);
+  border-color: var(--line-2);
+  background: transparent;
+  color: var(--ink);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.sheet__close:hover {
+  background: var(--paper-2);
+}
+
+.sheet__scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
+}
+.sheet__content {
+  padding: 22px var(--pad) calc(var(--pad) * 1.2);
+}
+/* Content arrives in a short stagger after the panel slides in. */
+.sheet__content > .body > * {
+  animation: rise-in 560ms var(--ease-out) both;
+}
+.sheet__content > .body > *:nth-child(2) {
+  animation-delay: 60ms;
+}
+.sheet__content > .body > *:nth-child(3) {
+  animation-delay: 110ms;
+}
+.sheet__content > .body > *:nth-child(n + 4) {
+  animation-delay: 150ms;
+}
+
+.sheet__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px calc(var(--pad) - 12px);
+  border-top: 1px solid var(--line);
+}
+.sheet__nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: var(--radius-m);
+  background: transparent;
+  color: var(--ink);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.sheet__nav:hover {
+  background: var(--paper-2);
+}
+.sheet__nav--next {
+  text-align: right;
+}
+.sheet__nav-kicker {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+@media (max-width: 819px) {
+  .sheet {
+    --pad: 22px;
+    top: auto;
+    left: 0;
+    width: auto;
+    height: 62vh;
+    height: 62dvh;
+    border-radius: var(--radius-l) var(--radius-l) 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation-name: sheet-in-bottom;
+  }
+  .sheet::before {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: auto;
+    width: auto;
+    height: 3px;
+    border-radius: var(--radius-l) var(--radius-l) 0 0;
+  }
+  .sheet-layer[data-state='leaving'] .sheet {
+    animation-name: sheet-out-bottom;
+  }
+  .sheet__grip {
+    display: block;
+    width: 40px;
+    height: 4px;
+    margin: 10px auto 0;
+    border-radius: 4px;
+    background: var(--line-2);
+  }
+  .sheet__head {
+    padding-top: 12px;
+  }
+  .sheet__close {
+    top: 14px;
+    right: 14px;
+  }
+  .sheet-backdrop {
+    background: rgba(15, 8, 20, 0.22);
+  }
+}
+
+@keyframes sheet-in-side {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+@keyframes sheet-out-side {
+  to {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+@keyframes sheet-in-bottom {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes sheet-out-bottom {
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}

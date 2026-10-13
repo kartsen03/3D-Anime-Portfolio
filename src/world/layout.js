@@ -35,12 +35,20 @@ function landmark(id, angleDeg, r, extra = {}) {
   return { id, position, yaw, approach, radius: 3.2, ...extra }
 }
 
+// Torii pillars (±1.38 m) and the pair of stone lanterns flanking each approach.
+const GATE_COLLIDERS = [
+  [-1.38, 0, 0.22],
+  [1.38, 0, 0.22],
+  [-2.4, 1.5, 0.38],
+  [2.4, 1.5, 0.38],
+]
+
 export const LANDMARKS = [
-  landmark('about', 40, 9.5, { colliders: [[-1.3, 0, 0.2], [1.3, 0, 0.2]] }),
-  landmark('projects', 112, 9.5, { colliders: [[-1.3, 0, 0.2], [1.3, 0, 0.2]] }),
-  landmark('experience', 184, 9.5, { colliders: [[-1.3, 0, 0.2], [1.3, 0, 0.2]] }),
-  landmark('resume', 256, 9.5, { colliders: [[-1.3, 0, 0.2], [1.3, 0, 0.2]] }),
-  landmark('contact', 328, 9.5, { colliders: [[-1.3, 0, 0.2], [1.3, 0, 0.2]] }),
+  landmark('about', 40, 9.5, { colliders: GATE_COLLIDERS }),
+  landmark('projects', 112, 9.5, { colliders: GATE_COLLIDERS }),
+  landmark('experience', 184, 9.5, { colliders: GATE_COLLIDERS }),
+  landmark('resume', 256, 9.5, { colliders: GATE_COLLIDERS }),
+  landmark('contact', 328, 9.5, { colliders: GATE_COLLIDERS }),
 ]
 
 export const landmarkById = (id) => LANDMARKS.find((l) => l.id === id) ?? null

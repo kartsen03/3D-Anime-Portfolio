@@ -1,82 +1,54 @@
-import { useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useMemo } from 'react'
 import * as THREE from 'three'
 import { LANDMARKS } from '../layout'
 import { useStore } from '../../state/store'
-import { makeToonGradient } from '../legacy/toonGradient'
+import { sectionById } from '../../content/sections'
+import Torii from './Torii'
+import StoneLantern from './StoneLantern'
 
-// Interim landmarks: the old torii gates, now positioned from layout.js and wired to the
-// store (click → travel there). Phase 2 replaces each with its own landmark.
+// One landmark per section: a vermilion torii with the section's name plaque, flanked by
+// a pair of stone lanterns. Clicking or tapping a landmark walks the character there and
+// opens the section. (Phase 2b gives each section its own centrepiece behind the gate.)
 
-const ACCENTS = {
-  about: '#7fe3ff',
-  projects: '#ffd47f',
-  experience: '#b69cff',
-  resume: '#7dffc4',
-  contact: '#ff9ec7',
-}
+// Invisible click target: a simple box is far cheaper to raycast than every beam and
+// rope of the gate, and gives a generous, forgiving hit area on touch screens.
+const hitGeometry = new THREE.BoxGeometry(3.6, 4.4, 1.6)
+const hitMaterial = new THREE.MeshBasicMaterial({ visible: false })
 
-const T = { pillarH: 3.5, pillarR: 0.12, halfSpan: 1.3, kasagiY: 3.6, nukiY: 2.6 }
-
-function Torii({ landmark, gradientMap }) {
-  const orbRef = useRef()
+function Landmark({ landmark }) {
   const travelTo = useStore((s) => s.travelTo)
-  const color = ACCENTS[landmark.id]
+  const openSection = useStore((s) => s.openSection)
+  const section = useMemo(() => sectionById(landmark.id), [landmark.id])
 
-  useFrame((state) => {
-    const t = state.clock.elapsedTime
-    orbRef.current.rotation.y = t * 0.8
-    orbRef.current.position.y = 1.5 + Math.sin(t * 1.6) * 0.12
-  })
-
-  const mat = useMemo(() => {
-    const m = new THREE.MeshToonMaterial({ color, gradientMap })
-    m.flatShading = true // set as a property: the constructor doesn't accept it for toon
-    return m
-  }, [color, gradientMap])
+  const onClick = (e) => {
+    e.stopPropagation()
+    const { nearSection } = useStore.getState()
+    if (nearSection === landmark.id) openSection(landmark.id)
+    else travelTo(landmark.id)
+  }
 
   return (
-    <group
-      position={landmark.position}
-      rotation={[0, landmark.yaw, 0]}
-      onClick={(e) => {
-        e.stopPropagation()
-        travelTo(landmark.id)
-      }}
-      onPointerOver={(e) => {
-        e.stopPropagation()
-        document.body.style.cursor = 'pointer'
-      }}
-      onPointerOut={() => {
-        document.body.style.cursor = ''
-      }}
-    >
-      {[-T.halfSpan, T.halfSpan].map((x) => (
-        <mesh key={x} position={[x, T.pillarH / 2, 0]} material={mat} castShadow>
-          <cylinderGeometry args={[T.pillarR, T.pillarR * 1.3, T.pillarH, 12]} />
-        </mesh>
-      ))}
-      <mesh position={[0, T.kasagiY, 0]} material={mat} castShadow>
-        <boxGeometry args={[T.halfSpan * 2 + 1.0, 0.22, 0.34]} />
-      </mesh>
-      <mesh position={[0, T.kasagiY + 0.17, 0]} material={mat} castShadow>
-        <boxGeometry args={[T.halfSpan * 2 + 1.3, 0.11, 0.28]} />
-      </mesh>
-      <mesh position={[0, T.nukiY, 0]} material={mat} castShadow>
-        <boxGeometry args={[T.halfSpan * 2 + 0.25, 0.16, 0.26]} />
-      </mesh>
-      <mesh position={[0, (T.nukiY + T.kasagiY) / 2, 0]} material={mat}>
-        <boxGeometry args={[0.13, T.kasagiY - T.nukiY, 0.2]} />
-      </mesh>
-      <mesh ref={orbRef} position={[0, 1.5, 0]}>
-        <icosahedronGeometry args={[0.32, 0]} />
-        <meshToonMaterial color={color} emissive={color} emissiveIntensity={1.8} gradientMap={gradientMap} />
-      </mesh>
+    <group position={landmark.position} rotation={[0, landmark.yaw, 0]}>
+      <Torii label={section.label} />
+      <StoneLantern position={[-2.4, 0, 1.5]} />
+      <StoneLantern position={[2.4, 0, 1.5]} />
+      <mesh
+        geometry={hitGeometry}
+        material={hitMaterial}
+        position={[0, 2.2, 0]}
+        onClick={onClick}
+        onPointerOver={(e) => {
+          e.stopPropagation()
+          document.body.style.cursor = 'pointer'
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = ''
+        }}
+      />
     </group>
   )
 }
 
 export default function Landmarks() {
-  const gradientMap = useMemo(() => makeToonGradient(4), [])
-  return LANDMARKS.map((lm) => <Torii key={lm.id} landmark={lm} gradientMap={gradientMap} />)
+  return LANDMARKS.map((lm) => <Landmark key={lm.id} landmark={lm} />)
 }

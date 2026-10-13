@@ -14,7 +14,6 @@ export const QUALITY = {
     dprMax: 1, // render at CSS pixel resolution at most
     msaa: 0,
     aa: 'fxaa', // single cheap pass
-    outlineNormals: false, // skip the normal pre-pass; silhouettes from depth only
     bloomLevels: 4,
     shadowMapSize: 0, // blob shadow under the character instead of a shadow map
     density: 0.35, // scales grass, petals, clouds…
@@ -23,7 +22,6 @@ export const QUALITY = {
     dprMax: 1.5,
     msaa: 0,
     aa: 'smaa',
-    outlineNormals: true,
     bloomLevels: 5,
     shadowMapSize: 1024,
     density: 0.7,
@@ -32,7 +30,6 @@ export const QUALITY = {
     dprMax: 2,
     msaa: 0,
     aa: 'smaa',
-    outlineNormals: true,
     bloomLevels: 6,
     shadowMapSize: 2048,
     density: 1,

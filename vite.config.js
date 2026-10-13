@@ -13,6 +13,23 @@ function devAssetWriter() {
     name: 'dev-asset-writer',
     apply: 'serve',
     configureServer(server) {
+      // Look-dev captures of the WebGL canvas, saved to .shots/ (git-ignored).
+      server.middlewares.use('/__dev/shot', (req, res) => {
+        const name = new URL(req.url, 'http://localhost').searchParams.get('name') ?? ''
+        if (req.method !== 'POST' || !/^[\w-]{1,64}$/.test(name)) {
+          res.statusCode = 400
+          res.end('refused')
+          return
+        }
+        const chunks = []
+        req.on('data', (c) => chunks.push(c))
+        req.on('end', () => {
+          const target = resolve(server.config.root, '.shots', `${name}.jpg`)
+          mkdirSync(dirname(target), { recursive: true })
+          writeFileSync(target, Buffer.concat(chunks))
+          res.end(`wrote .shots/${name}.jpg`)
+        })
+      })
       server.middlewares.use('/__dev/write', (req, res) => {
         const file = new URL(req.url, 'http://localhost').searchParams.get('file') ?? ''
         if (req.method !== 'POST' || !allowed.some((re) => re.test(file))) {

@@ -138,6 +138,7 @@ export default function CameraRig() {
     if (!cc) return
     const dt = Math.min(delta, 1 / 20)
     const c = runtime.character
+    if (runtime.freeCamera) return
 
     if (mode.current === 'follow') {
       const tx = c.position.x + c.velocity.x * LEAD_SECONDS

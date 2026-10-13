@@ -6,7 +6,6 @@ import {
   EffectComposer,
   EffectPass,
   FXAAEffect,
-  NormalPass,
   RenderPass,
   SMAAEffect,
   SMAAPreset,
@@ -22,25 +21,6 @@ import { OutlineEffect } from './OutlineEffect'
 import { GradeEffect } from './GradeEffect'
 import { THEMES } from '../themes'
 
-// Objects on this layer are skipped by the normal pre-pass (grass, particles, water):
-// they'd only add noisy crease lines, and their vertex animation isn't in the normal
-// pass's override material anyway.
-export const LAYER_NO_NORMALS = 2
-
-// Renders the normal buffer with LAYER_NO_NORMALS switched off on the camera.
-class FilteredNormalPass extends NormalPass {
-  constructor(scene, camera) {
-    super(scene, camera)
-    this.filterCamera = camera
-  }
-  render(...args) {
-    const layers = this.filterCamera.layers
-    layers.disable(LAYER_NO_NORMALS)
-    super.render(...args)
-    layers.enable(LAYER_NO_NORMALS)
-  }
-}
-
 // The post-processing chain, built directly on the `postprocessing` library rather than
 // through a React wrapper, for two reasons:
 //  1. Resizing: changing the pixel ratio at runtime (adaptive quality) must also resize
@@ -48,7 +28,7 @@ class FilteredNormalPass extends NormalPass {
 //     while measuring — so quality changes silently did nothing for post-processing.
 //  2. Control over pass layout. Each full-screen pass costs memory bandwidth, the scarce
 //     resource on integrated GPUs, so the chain is as short as the look allows:
-//       scene → [normals] → outline → bloom + tone map + grade + vignette (one merged
+//       scene → outline (depth only) → bloom + tone map + grade + vignette (one merged
 //       pass) → anti-aliasing.
 //
 // No MSAA: on the old pipeline 8× MSAA on both half-float buffers cost more than
@@ -73,17 +53,13 @@ export default function Pipeline() {
     })
     composer.addPass(new RenderPass(scene, camera))
 
-    let normalPass = null
-    if (preset.outlineNormals) {
-      normalPass = new FilteredNormalPass(scene, camera)
-      composer.addPass(normalPass)
-    }
-
-    const outline = new OutlineEffect({ normalBuffer: normalPass ? normalPass.texture : null })
+    const outline = new OutlineEffect()
     composer.addPass(new EffectPass(camera, outline))
 
     const bloom = new BloomEffect({ mipmapBlur: true, levels: preset.bloomLevels })
-    const tone = new ToneMappingEffect({ mode: ToneMappingMode.AGX })
+    // Khronos PBR Neutral: keeps hue and saturation as authored (A/B-tested against AgX,
+    // which greys anime colours out, and ACES, which washes out highlights).
+    const tone = new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL })
     const grade = new GradeEffect()
     const vignette = new VignetteEffect()
     // Merged into one shader: bloom's composite, tone mapping, grade and vignette all
@@ -101,9 +77,14 @@ export default function Pipeline() {
     }
 
     return { composer, effects: { outline, bloom, tone, grade, vignette } }
-  }, [gl, scene, camera, preset.msaa, preset.outlineNormals, preset.bloomLevels, preset.aa])
+  }, [gl, scene, camera, preset.msaa, preset.bloomLevels, preset.aa])
 
   useEffect(() => () => composer.dispose(), [composer])
+
+  // Development handle for look-dev (tone-mapping A/B tests, grade tuning).
+  useEffect(() => {
+    if (import.meta.env.DEV) window.__pipeline = { composer, effects }
+  }, [composer, effects])
 
   // Resize on window size AND pixel-ratio changes. setSize() with no arguments reads the
   // renderer's current drawing-buffer size, so every pass follows the new DPR.

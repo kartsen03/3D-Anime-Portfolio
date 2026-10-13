@@ -5,6 +5,8 @@ import { VRMUtils } from '@pixiv/three-vrm'
 import { createLocomotionAnimator } from './locomotionAnimation'
 import { stepLocomotion, beginTravel, beginBackgroundTravel, damp } from './locomotion'
 import { avatarPromise, clipsPromise } from './avatarAssets'
+import { toonifyVRM, syncToonMaterials } from './toonify'
+import { lanternPositions } from '../systems/lanterns'
 import { runtime, FRAME } from '../systems/runtime'
 import { SPAWN } from '../layout'
 import { useStore } from '../../state/store'
@@ -32,15 +34,14 @@ export default function Character() {
         // Skinned meshes report their bind-pose bounds, which can be wrong once the
         // animation moves them, so frustum culling would make limbs vanish at the edges.
         obj.frustumCulled = false
-        if (obj.isMesh) {
-          obj.castShadow = true
-          obj.receiveShadow = true
-        }
+        if (obj.isMesh) obj.castShadow = true
       })
+      vrm.scene.userData.toonMaterials = toonifyVRM(vrm)
       vrm.scene.userData.prepared = true
     }
     return vrm
   }, [gltf])
+  const toonMaterials = vrm.scene.userData.toonMaterials
 
   const animator = useMemo(() => createLocomotionAnimator(vrm, clips), [vrm, clips])
 
@@ -118,6 +119,12 @@ export default function Character() {
     // that pose onto the real skeleton and advances spring bones and expressions.
     animator.update(c.speed, dt)
     vrm.update(dt)
+
+    // How close is the nearest lantern? (drives the warm rim light at twilight)
+    let nearest = Infinity
+    for (const l of lanternPositions()) nearest = Math.min(nearest, l.position.distanceToSquared(c.position))
+    const lanternNear = Math.max(0, 1 - Math.sqrt(nearest) / 4.5)
+    syncToonMaterials(toonMaterials, dt, lanternNear * lanternNear)
   }, FRAME.locomotion)
 
   return (

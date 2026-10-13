@@ -1,102 +1,100 @@
 import { Effect, EffectAttribute } from 'postprocessing'
 import { Uniform, Color, Vector2 } from 'three'
 
-// Global cel outline: one screen-space edge pass inks the whole scene (character,
-// landmarks, trees) with a single consistent line, instead of per-object inverted hulls.
+// Global cel outline: one screen-space pass inks the whole scene (character, gates,
+// trees) with a single consistent line, instead of per-object inverted hulls.
 //
-// Two edge signals, both read from buffers the composer already has:
-//  • DEPTH   → silhouettes, where a neighbour pixel is much farther away than this one.
-//  • NORMALS → interior creases (folds, roof edges), where neighbour normals disagree.
+// It reads ONLY the main depth buffer, so lines always match what is actually visible:
+//  • Silhouettes — a neighbour much farther away than this pixel (relative jump, so the
+//    same threshold works up close and far away).
+//  • Creases — a kink in the surface, found with the second derivative of 1/depth.
+//    1/depth is linear across any flat plane in screen space, so its second derivative
+//    is exactly zero on floors and walls (no false lines on the ground at grazing angles)
+//    and spikes only where two surfaces meet at an angle.
 //
-// Changes from v1, each fixing something visible:
-//  • The depth edge is RELATIVE (difference ÷ distance). An absolute threshold in metres
-//    misses lines up close and turns distant ground at grazing angles into black noise.
-//  • Only neighbours FARTHER than the centre count, so the line sits on the near object's
-//    edge pixels instead of doubling up on the background side.
-//  • Line width is set in CSS pixels and scaled by the device pixel ratio, so it looks the
-//    same on a 1× laptop and a 3× phone.
-//  • The ink takes a darkened tint of the colour underneath ("coloured line art"), which
-//    reads far more refined than pure black, and fades out with distance.
+// An earlier version took creases from a normal pre-pass. That pass re-renders the scene
+// with a stand-in material, which cannot reproduce the cloud billboards' sphere depth or
+// the grass's wind motion — so it drew ghost lines of hidden objects through clouds and
+// noisy patches on the character. Depth-only also saves that whole extra scene render.
+//
+// Materials can opt out (clouds, grass, particles) by writing alpha < 1 into the HDR
+// colour buffer, which nothing else reads: those pixels get no ink.
+//
+// Line width is in CSS pixels scaled by the device pixel ratio, and the ink takes a
+// darkened tint of the colour underneath ("coloured line art"), fading with distance.
 const fragmentShader = /* glsl */ `
-uniform sampler2D uNormalBuffer;
 uniform vec3 uInkColor;
 uniform float uInkTint;
 uniform vec2 uThickness;        // neighbour offset in UV units (texel size × width px × DPR)
-uniform float uDepthThreshold;  // relative depth jump that starts a line (e.g. 0.04 = 4%)
-uniform float uNormalThreshold; // 1 - dot(nA, nB) that starts a crease line
+uniform float uDepthThreshold;  // relative depth jump that starts a silhouette line
+uniform float uCreaseThreshold; // relative curvature that starts a crease line
 uniform float uStrength;
-uniform vec2 uFade;             // line fades out between these distances (metres)
+uniform vec2 uFade;             // lines fade out between these distances (metres)
 
-// Distance from the camera in metres. Raw depth is very non-linear (most of its
-// precision sits near the camera), so edges are compared in linear depth instead.
-// getViewZ() comes from postprocessing and handles the camera type for us.
-float linearizeDepth(const in float d) {
+float linearDepth(const in float d) {
   return -getViewZ(d);
 }
 
-vec3 readNormal(const in vec2 uv) {
-  return texture(uNormalBuffer, uv).xyz * 2.0 - 1.0;
-}
-
 void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth, out vec4 outputColor) {
-  // Empty sky writes no depth (the dome has depthWrite off), so it never gets inked.
-  if (depth >= 0.99999) {
-    outputColor = inputColor;
+  // Empty sky (no depth written) and opted-out materials get no ink.
+  if (depth >= 0.99999 || inputColor.a < 0.75) {
+    outputColor = vec4(inputColor.rgb, 1.0);
     return;
   }
 
-  float dC = linearizeDepth(depth);
   vec2 ox = vec2(uThickness.x, 0.0);
   vec2 oy = vec2(0.0, uThickness.y);
+  float zC = linearDepth(depth);
+  float zL = linearDepth(readDepth(uv - ox));
+  float zR = linearDepth(readDepth(uv + ox));
+  float zD = linearDepth(readDepth(uv - oy));
+  float zU = linearDepth(readDepth(uv + oy));
 
-  float dMax = max(
-    max(linearizeDepth(readDepth(uv - ox)), linearizeDepth(readDepth(uv + ox))),
-    max(linearizeDepth(readDepth(uv - oy)), linearizeDepth(readDepth(uv + oy)))
-  );
-  float depthEdge = smoothstep(uDepthThreshold, uDepthThreshold * 1.8, (dMax - dC) / dC);
+  // Silhouette: only neighbours FARTHER than this pixel count, so the line lands on the
+  // near object's edge instead of doubling onto the background.
+  float far = max(max(zL, zR), max(zD, zU));
+  float silhouette = smoothstep(uDepthThreshold, uDepthThreshold * 1.8, (far - zC) / zC);
 
-  float normalEdge = 0.0;
-  #ifdef USE_NORMALS
-    vec3 nC = readNormal(uv);
-    float crease = max(
-      max(1.0 - dot(nC, readNormal(uv - ox)), 1.0 - dot(nC, readNormal(uv + ox))),
-      max(1.0 - dot(nC, readNormal(uv - oy)), 1.0 - dot(nC, readNormal(uv + oy)))
-    );
-    // Creases fade sooner than silhouettes: at a distance they turn into noise.
-    float creaseFade = 1.0 - smoothstep(uFade.x * 0.5, uFade.y * 0.6, dC);
-    normalEdge = smoothstep(uNormalThreshold, uNormalThreshold * 1.6, crease) * creaseFade;
-  #endif
+  // Crease: second difference of inverse depth, relative to this pixel's inverse depth.
+  // Only on a continuous surface: next to an occluder (a grass blade in front of the
+  // ground, a hand in front of the chest) the second difference spikes too, and inking
+  // that would fringe every foreground object with a dark halo.
+  float iC = 1.0 / zC;
+  float lapX = abs(1.0 / zL + 1.0 / zR - 2.0 * iC) / iC;
+  float lapY = abs(1.0 / zD + 1.0 / zU - 2.0 * iC) / iC;
+  float near = min(min(zL, zR), min(zD, zU));
+  float continuous = step(max(far - zC, zC - near) / zC, uDepthThreshold);
+  float crease = smoothstep(uCreaseThreshold, uCreaseThreshold * 2.0, max(lapX, lapY)) * continuous;
+  // Creases fade sooner than silhouettes: at a distance they turn into noise.
+  crease *= 1.0 - smoothstep(uFade.x * 0.4, uFade.y * 0.5, zC);
 
-  float fade = 1.0 - smoothstep(uFade.x, uFade.y, dC);
-  float edge = clamp(max(depthEdge, normalEdge) * fade * uStrength, 0.0, 1.0);
+  float fade = 1.0 - smoothstep(uFade.x, uFade.y, zC);
+  float edge = clamp(max(silhouette, crease) * fade * uStrength, 0.0, 1.0);
 
   vec3 ink = mix(uInkColor, inputColor.rgb * 0.28, uInkTint);
-  outputColor = vec4(mix(inputColor.rgb, ink, edge), inputColor.a);
+  outputColor = vec4(mix(inputColor.rgb, ink, edge), 1.0);
 }
 `
 
 export class OutlineEffect extends Effect {
   constructor({
-    normalBuffer = null,
     inkColor = '#1a1420',
     inkTint = 0.55,
-    width = 1.25,
-    depthThreshold = 0.045,
-    normalThreshold = 0.35,
+    width = 1.2,
+    depthThreshold = 0.04,
+    creaseThreshold = 0.012,
     strength = 1,
     fadeStart = 40,
-    fadeEnd = 120,
+    fadeEnd = 130,
   } = {}) {
     super('ToonOutlineEffect', fragmentShader, {
       attributes: EffectAttribute.CONVOLUTION | EffectAttribute.DEPTH,
-      defines: normalBuffer ? new Map([['USE_NORMALS', '1']]) : new Map(),
       uniforms: new Map([
-        ['uNormalBuffer', new Uniform(normalBuffer)],
         ['uInkColor', new Uniform(new Color(inkColor))],
         ['uInkTint', new Uniform(inkTint)],
         ['uThickness', new Uniform(new Vector2())],
         ['uDepthThreshold', new Uniform(depthThreshold)],
-        ['uNormalThreshold', new Uniform(normalThreshold)],
+        ['uCreaseThreshold', new Uniform(creaseThreshold)],
         ['uStrength', new Uniform(strength)],
         ['uFade', new Uniform(new Vector2(fadeStart, fadeEnd))],
       ]),
@@ -119,7 +117,7 @@ export class OutlineEffect extends Effect {
     if (params.inkColor !== undefined) u.get('uInkColor').value.set(params.inkColor)
     if (params.inkTint !== undefined) u.get('uInkTint').value = params.inkTint
     if (params.depthThreshold !== undefined) u.get('uDepthThreshold').value = params.depthThreshold
-    if (params.normalThreshold !== undefined) u.get('uNormalThreshold').value = params.normalThreshold
+    if (params.creaseThreshold !== undefined) u.get('uCreaseThreshold').value = params.creaseThreshold
     if (params.strength !== undefined) u.get('uStrength').value = params.strength
     if (params.fadeStart !== undefined) u.get('uFade').value.x = params.fadeStart
     if (params.fadeEnd !== undefined) u.get('uFade').value.y = params.fadeEnd

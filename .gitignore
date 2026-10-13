@@ -5,3 +5,6 @@ dist-ssr
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+
+# look-dev captures (vite dev /__dev/shot)
+.shots/

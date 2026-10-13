@@ -16,11 +16,15 @@ export const THEMES = {
       zenith: '#2f62b8',
       upper: '#79aee6',
       horizon: '#ffd7a3',
-      below: '#f6c7a0', // under the horizon, toward the cloud sea
+      below: '#eebba9', // under the horizon, toward the cloud sea
       sunColor: '#fff3d6',
       sunSize: 0.035,
       sunGlow: 0.55,
       stars: 0,
+      // Cloud puffs: shadowed underside, sunlit body, warm highlight.
+      cloudShadow: '#a798cf',
+      cloudMid: '#f5c6b3',
+      cloudLit: '#fff4e4',
     },
     // Sun low in the west-south-west: long shadows, warm rim on everything.
     sun: { direction: [-0.62, 0.42, -0.66], color: '#ffd9a8', intensity: 3.4 },
@@ -68,10 +72,13 @@ export const THEMES = {
       sunSize: 0.018, // the moon
       sunGlow: 0.35,
       stars: 1,
+      cloudShadow: '#2f3375',
+      cloudMid: '#4b4486',
+      cloudLit: '#a9a6e2',
     },
     // Moonlight from high in the east: cool key, deep shadows, lanterns carry the warmth.
-    sun: { direction: [0.45, 0.62, 0.64], color: '#b9c6ff', intensity: 1.15 },
-    hemi: { sky: '#3a4a9a', ground: '#3d2a4a', intensity: 0.7 },
+    sun: { direction: [0.45, 0.62, 0.64], color: '#b9c6ff', intensity: 1.55 },
+    hemi: { sky: '#4656a8', ground: '#4a3152', intensity: 0.9 },
     fog: { color: '#2a2a5c', near: 35, far: 220, heightFalloff: 0.03 },
     toon: {
       shadow: '#3a3f86',

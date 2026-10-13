@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { useStore } from '../state/store'
 import { THEMES } from './themes'
@@ -10,22 +10,23 @@ import Pipeline from './render/Pipeline'
 import QualityManager from './render/QualityManager'
 import CameraRig from './camera/CameraRig'
 import Character from './character/Character'
-import Lights from './Lights'
+import WorldLighting from './WorldLighting'
 import Landmarks from './landmarks/Landmarks'
 import GroundInput from './systems/GroundInput'
 import PromptAnchor from './systems/PromptAnchor'
 import WarmUp from './systems/WarmUp'
-import SkyDome from './legacy/SkyDome'
-import Atmosphere from './legacy/Atmosphere'
-import Island from './legacy/Island'
-import Props from './legacy/Props'
-import Foliage from './legacy/Foliage'
-import Debris from './legacy/Debris'
-import { makeToonGradient } from './legacy/toonGradient'
+import Sky from './environment/Sky'
+import Island from './environment/Island'
+import Clouds from './environment/Clouds'
+import Grass from './environment/Grass'
+
+// Look-dev helpers exist only on the dev server with ?lookdev (stripped from production).
+const LookDev =
+  import.meta.env.DEV && new URLSearchParams(window.location.search).has('lookdev')
+    ? lazy(() => import('./dev/LookDev'))
+    : null
 
 expectAssets(Object.values(ASSETS).map((a) => a.bytes))
-
-const gradientMap = makeToonGradient(4)
 
 // Everything that runs inside the WebGL canvas.
 function WorldContents() {
@@ -47,13 +48,11 @@ function WorldContents() {
   return (
     <>
       <QualityManager />
-      <Lights />
-      <SkyDome />
-      <Atmosphere />
-      <Island gradientMap={gradientMap} />
-      <Props gradientMap={gradientMap} />
-      <Foliage gradientMap={gradientMap} />
-      <Debris gradientMap={gradientMap} />
+      <WorldLighting />
+      <Sky />
+      <Island />
+      <Clouds />
+      <Grass />
       <Landmarks />
       <GroundInput />
       <Suspense fallback={null}>
@@ -63,6 +62,11 @@ function WorldContents() {
       <CameraRig />
       <PromptAnchor />
       <Pipeline />
+      {LookDev && (
+        <Suspense fallback={null}>
+          <LookDev />
+        </Suspense>
+      )}
     </>
   )
 }

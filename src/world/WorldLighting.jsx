@@ -34,6 +34,8 @@ function targetsFor(theme) {
     cloudShadow: new THREE.Color(theme.sky.cloudShadow),
     cloudMid: new THREE.Color(theme.sky.cloudMid),
     cloudLit: new THREE.Color(theme.sky.cloudLit),
+    petalLit: new THREE.Color(theme.petals.lit),
+    petalShade: new THREE.Color(theme.petals.shade),
     sunDir: new THREE.Vector3(...theme.sun.direction).normalize(),
     sunLight: new THREE.Color(theme.sun.color),
     sunIntensity: theme.sun.intensity,
@@ -126,6 +128,8 @@ export default function WorldLighting() {
     U.uCloudShadow.value.lerp(target.cloudShadow, k)
     U.uCloudMid.value.lerp(target.cloudMid, k)
     U.uCloudLit.value.lerp(target.cloudLit, k)
+    U.uPetalLit.value.lerp(target.petalLit, k)
+    U.uPetalShade.value.lerp(target.petalShade, k)
     U.uSunDir.value.lerp(target.sunDir, k).normalize()
     U.uToonShadow.value.lerp(target.toonShadow, k)
     U.uToonTerminator.value.lerp(target.toonTerminator, k)

@@ -42,6 +42,7 @@ export const THEMES = {
       rimPower: 3.2,
     },
     lanterns: 0.15, // emissive strength multiplier for lantern lights (barely lit by day)
+    petals: { lit: '#ffdbe5', shade: '#e79ab5' },
     bloom: { threshold: 0.92, smoothing: 0.22, intensity: 0.7, radius: 0.72 },
     grade: {
       lift: [0.03, 0.02, 0.05],
@@ -92,6 +93,7 @@ export const THEMES = {
       rimPower: 2.8,
     },
     lanterns: 1.0,
+    petals: { lit: '#b7a0d4', shade: '#6a5896' },
     bloom: { threshold: 0.78, smoothing: 0.3, intensity: 1.15, radius: 0.78 },
     grade: {
       lift: [0.02, 0.02, 0.06],

@@ -19,6 +19,9 @@ import Sky from './environment/Sky'
 import Island from './environment/Island'
 import Clouds from './environment/Clouds'
 import Grass from './environment/Grass'
+import Trees from './environment/Trees'
+import Ambient from './environment/Ambient'
+import SkyName from './environment/SkyName'
 
 // Look-dev helpers exist only on the dev server with ?lookdev (stripped from production).
 const LookDev =
@@ -52,7 +55,10 @@ function WorldContents() {
       <Sky />
       <Island />
       <Clouds />
+      <SkyName />
       <Grass />
+      <Trees />
+      <Ambient />
       <Landmarks />
       <GroundInput />
       <Suspense fallback={null}>

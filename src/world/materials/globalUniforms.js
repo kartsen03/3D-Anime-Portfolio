@@ -55,6 +55,8 @@ export const U = {
   uLanternLights: { value: Array.from({ length: 16 }, () => new THREE.Vector4()) },
   uLanternCount: { value: 0 },
   uLanternColor: { value: new THREE.Color('#ffb36b') },
+  uPetalLit: { value: new THREE.Color() },
+  uPetalShade: { value: new THREE.Color() },
 }
 
 /**

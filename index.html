@@ -129,6 +129,32 @@
         visibility: hidden;
         pointer-events: none;
       }
+      /* Title-card intro: the sky behind the name fades fast, while the name itself swells
+         and dissolves slowly over the camera's first move. */
+      .splash[data-state='title'] {
+        background: transparent;
+        pointer-events: none;
+        transition: background 700ms ease;
+      }
+      .splash[data-state='title'] .splash__top,
+      .splash[data-state='title'] .splash__bottom,
+      .splash[data-state='title'] .splash__kanji,
+      .splash[data-state='title'] .splash__role {
+        opacity: 0;
+        transition: opacity 500ms ease;
+      }
+      .splash[data-state='title'] .splash__name {
+        opacity: 0;
+        transform: scale(1.16);
+        letter-spacing: 0.02em;
+        filter: blur(6px);
+        transform-origin: 30% 50%;
+        transition:
+          opacity 2200ms cubic-bezier(0.4, 0, 0.2, 1) 300ms,
+          transform 2500ms cubic-bezier(0.16, 1, 0.3, 1),
+          letter-spacing 2500ms cubic-bezier(0.16, 1, 0.3, 1),
+          filter 2200ms ease 300ms;
+      }
       .splash__top {
         display: flex;
         align-items: center;
@@ -268,7 +294,8 @@
         to {
           opacity: 1;
           transform: none;
-          clip-path: inset(0 0 -10% 0);
+          /* Negative insets: the end state must not clip the name's soft glow to its box. */
+          clip-path: inset(-40% -20% -40% -20%);
         }
       }
       @keyframes fade {

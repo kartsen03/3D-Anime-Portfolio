@@ -5,7 +5,7 @@ import CameraControlsImpl from 'camera-controls'
 import * as THREE from 'three'
 import { runtime, FRAME } from '../systems/runtime'
 import { damp } from '../character/locomotion'
-import { landmarkById } from '../layout'
+import { landmarkById, SKY_NAME, SPAWN } from '../layout'
 import { useStore } from '../../state/store'
 import { sheetCoverage } from '../../ui/layoutMetrics'
 
@@ -16,6 +16,8 @@ const FOLLOW_LAMBDA = 8 // how tightly the camera tracks the character (1/s)
 const LEAD_SECONDS = 0.3 // look slightly ahead of where the character is heading
 const BASE_FOV = 40 // vertical, degrees, on landscape screens
 const MIN_HORIZONTAL_FOV = 56 // keep at least this much width visible on portrait screens
+const _eye = new THREE.Vector3()
+const _target = new THREE.Vector3()
 
 // Third-person camera.
 //
@@ -34,8 +36,69 @@ export default function CameraRig() {
   const height = useThree((s) => s.size.height)
 
   const follow = useRef(new THREE.Vector3())
-  const mode = useRef('follow') // 'follow' | 'focus' | 'returning'
+  const mode = useRef('follow') // 'follow' | 'focus' | 'returning' | 'intro'
   const viewShift = useRef({ x: 0, y: 0 })
+  const intro = useRef(null)
+
+  // Opening shot: start looking up at the name written across the sky, hold a beat,
+  // then pan down and glide in to the explore view behind the character. Any key or tap
+  // hurries it along. (Under reduced motion the splash skips straight to 'explore'.)
+  useEffect(
+    () =>
+      useStore.subscribe(
+        (s) => s.phase,
+        (phase) => {
+          const cc = ref.current
+          if (phase !== 'intro' || !cc) return
+          const to = { eye: cc.getPosition(new THREE.Vector3()), target: cc.getTarget(new THREE.Vector3()) }
+          const back = to.eye.clone().sub(to.target).setY(0).normalize()
+          // Sky variant: start looking up at the name written across the sky. Type variant
+          // (the name is the HTML title card dissolving over the scene): an establishing
+          // shot from high above and behind, looking down across the whole island.
+          const from =
+            useStore.getState().intro === 'sky'
+              ? {
+                  eye: to.eye.clone().addScaledVector(back, 5).add(new THREE.Vector3(0, 2.2, 0)),
+                  target: new THREE.Vector3(...SKY_NAME.position),
+                }
+              : {
+                  eye: to.eye.clone().addScaledVector(back, 16).add(new THREE.Vector3(0, 9, 0)),
+                  target: to.target.clone().addScaledVector(back, -6).setY(-1),
+                }
+          // The gaze is blended as a direction (yaw, pitch), not as a look-at point. A point
+          // that starts 350 m away and slides toward the camera barely changes the view
+          // angle until the last moment, so the tilt would bunch into a whip-pan at the end.
+          const look = (eye, target) => {
+            const d = target.clone().sub(eye)
+            const dist = d.length()
+            return { yaw: Math.atan2(d.x, d.z), pitch: Math.asin(d.y / dist), dist }
+          }
+          from.look = look(from.eye, from.target)
+          to.look = look(to.eye, to.target)
+          intro.current = { t: 0, hold: 1.8, duration: 3.6, from, to, hurry: false }
+          mode.current = 'intro'
+          cc.enabled = false
+          cc.setLookAt(from.eye.x, from.eye.y, from.eye.z, from.target.x, from.target.y, from.target.z, false)
+          const hurry = () => {
+            const it = intro.current
+            if (!it || it.hurry) return
+            it.hurry = true
+            // Finish the remaining move in about half a second.
+            const progress = Math.max(0, (it.t - it.hold) / it.duration)
+            it.hold = Math.min(it.hold, it.t)
+            it.duration = Math.max(0.55, it.duration * 0.15)
+            it.t = it.hold + progress * it.duration
+          }
+          window.addEventListener('keydown', hurry, { once: true })
+          window.addEventListener('pointerdown', hurry, { once: true })
+          intro.current.cleanup = () => {
+            window.removeEventListener('keydown', hurry)
+            window.removeEventListener('pointerdown', hurry)
+          }
+        },
+      ),
+    [],
+  )
 
   // Responsive lens: on tall, narrow screens widen the vertical FOV so the world doesn't
   // shrink to a sliver around the character.
@@ -66,12 +129,15 @@ export default function CameraRig() {
     cc.touches.two = ACTION.TOUCH_DOLLY
     cc.touches.three = ACTION.NONE
 
-    const c = runtime.character
-    follow.current.set(c.position.x, c.position.y + TARGET_HEIGHT, c.position.z)
+    // From the layout, not runtime.character: this effect runs before the character
+    // (still loading behind Suspense) has been placed at the spawn.
+    const [sx, sy, sz] = SPAWN.position
+    follow.current.set(sx, sy + TARGET_HEIGHT, sz)
     const portrait = width < height
     cc.moveTo(follow.current.x, follow.current.y, follow.current.z, false)
-    // Behind the character's spawn heading, slightly above.
-    cc.rotateTo(c.heading + Math.PI, 1.2, false)
+    // Looking along the spawn view, a little above: a shallow ~14° look-down keeps the
+    // horizon (sky, sea of clouds) in the top third instead of a frame of grass.
+    cc.rotateTo(SPAWN.view + Math.PI, 1.32, false)
     cc.dollyTo(portrait ? 9.5 : 7.2, false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -139,6 +205,40 @@ export default function CameraRig() {
     const dt = Math.min(delta, 1 / 20)
     const c = runtime.character
     if (runtime.freeCamera) return
+
+    if (mode.current === 'intro' && intro.current) {
+      const it = intro.current
+      it.t += dt
+      const s = THREE.MathUtils.clamp((it.t - it.hold) / it.duration, 0, 1)
+      // Ease in and out; the eye rises slightly mid-move for a crane-like arc, and the
+      // gaze leads the move a little, so the tilt down reveals the island before the
+      // camera settles in behind the character.
+      const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2)
+      const e = ease(s)
+      const g = ease(Math.min(1, s * 1.12))
+      _eye.lerpVectors(it.from.eye, it.to.eye, e)
+      _eye.y += Math.sin(Math.PI * e) * 1.6
+      const a = it.from.look
+      const b = it.to.look
+      // Shortest way round for the yaw; the look distance blends geometrically (350 m → 7 m).
+      const yaw = a.yaw + Math.atan2(Math.sin(b.yaw - a.yaw), Math.cos(b.yaw - a.yaw)) * g
+      const pitch = THREE.MathUtils.lerp(a.pitch, b.pitch, g)
+      const dist = Math.exp(THREE.MathUtils.lerp(Math.log(a.dist), Math.log(b.dist), e))
+      _target.set(
+        _eye.x + Math.sin(yaw) * Math.cos(pitch) * dist,
+        _eye.y + Math.sin(pitch) * dist,
+        _eye.z + Math.cos(yaw) * Math.cos(pitch) * dist,
+      )
+      cc.setLookAt(_eye.x, _eye.y, _eye.z, _target.x, _target.y, _target.z, false)
+      if (s >= 1) {
+        it.cleanup?.()
+        intro.current = null
+        follow.current.copy(it.to.target)
+        mode.current = 'follow'
+        useStore.getState().setPhase('explore')
+      }
+      return
+    }
 
     if (mode.current === 'follow') {
       const tx = c.position.x + c.velocity.x * LEAD_SECONDS

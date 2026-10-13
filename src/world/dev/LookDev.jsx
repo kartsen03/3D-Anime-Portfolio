@@ -14,11 +14,20 @@ export default function LookDev() {
   const get = useThree((s) => s.get)
 
   useEffect(() => {
-    let t = performance.now()
+    // Take over the frame loop: in 'never' mode R3F uses the timestamps we pass (seconds)
+    // instead of the real clock, so every step is exactly 1/60 s of simulated time and
+    // captures are deterministic even when the tab isn't drawing frames.
+    get().setFrameloop('never')
+    let t = get().clock.elapsedTime
     const drive = async (seconds) => {
+      // Re-assert: a Canvas re-render (e.g. a theme switch) re-applies frameloop='always'.
+      if (get().frameloop !== 'never') {
+        get().setFrameloop('never')
+        t = Math.max(t, get().clock.elapsedTime)
+      }
       const frames = Math.max(1, Math.round(seconds * 60))
       for (let i = 0; i < frames; i++) {
-        t += 1000 / 60
+        t += 1 / 60
         advance(t, true)
         if (i % 30 === 29) await new Promise((r) => setTimeout(r, 0))
       }
@@ -34,7 +43,11 @@ export default function LookDev() {
       await drive(0.25)
     }
     const shot = async (name) => {
-      t += 1000 / 60
+      if (get().frameloop !== 'never') {
+        get().setFrameloop('never')
+        t = Math.max(t, get().clock.elapsedTime)
+      }
+      t += 1 / 60
       advance(t, true)
       // Read the canvas in the same task as the render, before the browser presents it.
       const url = get().gl.domElement.toDataURL('image/jpeg', 0.9)

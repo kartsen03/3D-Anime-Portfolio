@@ -9,9 +9,19 @@ export const ISLAND = {
   walkRadius: 13, // the character can't go farther than this from the centre
 }
 
-// Spawn point and the direction the character initially faces (toward the island centre's
-// "front", where the About gate stands).
-export const SPAWN = { position: [0, 0, 2.5], heading: Math.PI * 0.18 }
+// Spawn point. `view` is the direction the opening camera looks (the About gate a little
+// left of centre, the sakura right of it); `heading` is where the character faces — a
+// three-quarter turn toward the About gate, the first section, as if about to set off.
+export const SPAWN = { position: [0, 0, 2.5], heading: Math.PI * 0.35, view: Math.PI * 0.2 }
+
+// The name written across the sky: straight ahead of the spawn view, far out and high
+// up, facing back toward the island. The opening shot starts looking up at it.
+const NAME_DISTANCE = 330
+export const SKY_NAME = (() => {
+  const h = SPAWN.view
+  const position = [Math.sin(h) * NAME_DISTANCE, 92, Math.cos(h) * NAME_DISTANCE]
+  return { position, yaw: Math.atan2(-position[0], -position[2]), width: 280 }
+})()
 
 // One landmark per section. `yaw` turns the landmark to face the island centre.
 // `approach` is where the character stops when travelling there (in front of the

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useStore } from '../state/store'
+import { useStore, selectReducedMotion } from '../state/store'
 
 // The splash screen is plain HTML in index.html, so it paints instantly — before any
 // JavaScript has downloaded. This hook takes it over once React runs: it drives the
@@ -17,19 +17,23 @@ export function useSplash() {
     const quick = document.getElementById('splash-quick')
 
     let dismissed = false
-    const dismiss = () => {
+    // 'leaving' fades the splash out to reveal the world; 'title' (the typographic intro)
+    // lets the name swell and dissolve slowly while the camera moves behind it.
+    const dismiss = (title = false) => {
       if (dismissed) return
       dismissed = true
-      splash.dataset.state = 'leaving'
-      setTimeout(() => splash.remove(), 950)
+      splash.dataset.state = title ? 'title' : 'leaving'
+      setTimeout(() => splash.remove(), title ? 2600 : 950)
     }
 
     const begin = () => {
       const store = useStore.getState()
       if (store.phase !== 'ready') return
-      // Phase 2 adds the opening camera move ('intro') between ready and explore.
-      store.setPhase('explore')
-      dismiss()
+      // The opening camera move plays unless motion is reduced or a deep link is waiting
+      // (then the visitor goes straight to the section they asked for).
+      const skipIntro = selectReducedMotion(store) || store.pendingSection
+      store.setPhase(skipIntro ? 'explore' : 'intro')
+      dismiss(!skipIntro && store.intro === 'type')
     }
     const toQuick = (e) => {
       e.preventDefault()

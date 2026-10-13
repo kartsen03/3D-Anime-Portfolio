@@ -145,11 +145,13 @@ function scatter(density, seed) {
       const y = groundHeight(x, z)
       if (y < -0.75) continue
       if (blockers.some((b) => (x - b.x) ** 2 + (z - b.z) ** 2 < b.r * b.r)) continue
-      // Trodden path: sparse, short grass.
+      // Trodden path: bare in the middle, the meadow thinning and shortening toward it.
+      // (Tiny tufts left on the path read as dark specks, so none are kept there.)
       const dp = distanceToPath(x, z)
-      const onPath = dp < 0.85
-      if (onPath && rand() < 0.75) continue
-      const height = (onPath ? 0.12 : 0.26 + rand() * 0.22) * (r > R - 2 ? 0.75 : 1)
+      if (dp < 0.6) continue
+      const edge = THREE.MathUtils.smoothstep(dp, 0.6, 1.3)
+      if (rand() > 0.25 + edge * 0.75) continue
+      const height = (0.26 + rand() * 0.22) * (0.45 + edge * 0.55) * (r > R - 2 ? 0.75 : 1)
       groundColor(x, z, c)
       c.multiplyScalar(0.94 + rand() * 0.12)
       const key = `${Math.floor(x / CHUNK)},${Math.floor(z / CHUNK)}`

@@ -23,6 +23,17 @@ export const SKY_NAME = (() => {
   return { position, yaw: Math.atan2(-position[0], -position[2]), width: 280 }
 })()
 
+/**
+ * Where the sky name goes for a lens `hFovDeg` wide. On portrait screens the lens is much
+ * narrower than the name, so it moves farther out along the same line of sight: the same
+ * spot in the sky, smaller on screen, still whole. `scale` (≥ 1) is how much farther.
+ */
+export function skyNamePlacement(hFovDeg) {
+  const visibleHalfWidth = Math.tan((hFovDeg * Math.PI) / 360) * NAME_DISTANCE * 0.86 // keep a margin
+  const scale = Math.max(1, SKY_NAME.width / 2 / visibleHalfWidth)
+  return { position: SKY_NAME.position.map((v) => v * scale), scale }
+}
+
 // One landmark per section. `yaw` turns the landmark to face the island centre.
 // `approach` is where the character stops when travelling there (in front of the
 // landmark, toward the centre). `radius` is how close counts as "at" the landmark.

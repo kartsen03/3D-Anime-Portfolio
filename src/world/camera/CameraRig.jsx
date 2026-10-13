@@ -5,17 +5,16 @@ import CameraControlsImpl from 'camera-controls'
 import * as THREE from 'three'
 import { runtime, FRAME } from '../systems/runtime'
 import { damp } from '../character/locomotion'
-import { landmarkById, SKY_NAME, SPAWN } from '../layout'
+import { landmarkById, skyNamePlacement, SPAWN } from '../layout'
 import { useStore } from '../../state/store'
 import { sheetCoverage } from '../../ui/layoutMetrics'
+import { lensFor } from './lens'
 
 const { ACTION } = CameraControlsImpl
 
 const TARGET_HEIGHT = 1.2 // look at roughly chest height
 const FOLLOW_LAMBDA = 8 // how tightly the camera tracks the character (1/s)
 const LEAD_SECONDS = 0.3 // look slightly ahead of where the character is heading
-const BASE_FOV = 40 // vertical, degrees, on landscape screens
-const MIN_HORIZONTAL_FOV = 56 // keep at least this much width visible on portrait screens
 const _eye = new THREE.Vector3()
 const _target = new THREE.Vector3()
 
@@ -34,6 +33,7 @@ export default function CameraRig() {
   const camera = useThree((s) => s.camera)
   const width = useThree((s) => s.size.width)
   const height = useThree((s) => s.size.height)
+  const get = useThree((s) => s.get)
 
   const follow = useRef(new THREE.Vector3())
   const mode = useRef('follow') // 'follow' | 'focus' | 'returning' | 'intro'
@@ -52,6 +52,7 @@ export default function CameraRig() {
           if (phase !== 'intro' || !cc) return
           const to = { eye: cc.getPosition(new THREE.Vector3()), target: cc.getTarget(new THREE.Vector3()) }
           const back = to.eye.clone().sub(to.target).setY(0).normalize()
+          const { size } = get()
           // Sky variant: start looking up at the name written across the sky. Type variant
           // (the name is the HTML title card dissolving over the scene): an establishing
           // shot from high above and behind, looking down across the whole island.
@@ -59,7 +60,7 @@ export default function CameraRig() {
             useStore.getState().intro === 'sky'
               ? {
                   eye: to.eye.clone().addScaledVector(back, 5).add(new THREE.Vector3(0, 2.2, 0)),
-                  target: new THREE.Vector3(...SKY_NAME.position),
+                  target: new THREE.Vector3(...skyNamePlacement(lensFor(size.width, size.height).hFov).position),
                 }
               : {
                   eye: to.eye.clone().addScaledVector(back, 16).add(new THREE.Vector3(0, 9, 0)),
@@ -97,15 +98,12 @@ export default function CameraRig() {
           }
         },
       ),
-    [],
+    [get],
   )
 
-  // Responsive lens: on tall, narrow screens widen the vertical FOV so the world doesn't
-  // shrink to a sliver around the character.
+  // Responsive lens (see lens.js).
   useEffect(() => {
-    const aspect = width / Math.max(height, 1)
-    const vForMinH = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(MIN_HORIZONTAL_FOV / 2)) / aspect))
-    camera.fov = THREE.MathUtils.clamp(Math.max(BASE_FOV, vForMinH), BASE_FOV, 66)
+    camera.fov = lensFor(width, height).fov
     camera.updateProjectionMatrix()
   }, [camera, width, height])
 

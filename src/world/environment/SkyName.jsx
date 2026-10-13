@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useStore } from '../../state/store'
 import { QUALITY } from '../render/quality'
 import { U } from '../materials/globalUniforms'
 import { createCloudMaterial, createPuffGeometry } from '../materials/cloudMaterial'
 import { profile } from '../../content/profile'
-import { SKY_NAME } from '../layout'
+import { SKY_NAME, skyNamePlacement } from '../layout'
+import { lensFor } from '../camera/lens'
 import { mulberry32 } from './noise'
 
 // The name, written across the sky — the first thing the opening shot sees, and huge
@@ -156,6 +158,9 @@ void main() {
 export default function SkyName() {
   const tier = useStore((s) => s.tier)
   const intro = useStore((s) => s.intro)
+  const width = useThree((s) => s.size.width)
+  const height = useThree((s) => s.size.height)
+  const placement = useMemo(() => skyNamePlacement(lensFor(width, height).hFov), [width, height])
   const { density } = QUALITY[tier]
   // The glyphs need the display font; it is preloaded by the splash, but wait for it so
   // the sky never spells the name in a fallback serif.
@@ -229,7 +234,7 @@ export default function SkyName() {
 
   if (!built) return null
   return (
-    <group position={SKY_NAME.position} rotation={[0, SKY_NAME.yaw, 0]}>
+    <group position={placement.position} rotation={[0, SKY_NAME.yaw, 0]}>
       <mesh geometry={built.puffGeo} material={built.puffMat} frustumCulled={false} />
       <mesh geometry={built.puffGeo} material={built.lightMat} frustumCulled={false} renderOrder={3} />
     </group>

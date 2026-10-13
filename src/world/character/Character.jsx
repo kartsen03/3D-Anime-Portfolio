@@ -2,10 +2,9 @@ import { use, useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { VRMUtils } from '@pixiv/three-vrm'
-import { retargetMixamoAnimation } from './retarget'
 import { createLocomotionAnimator } from './locomotionAnimation'
 import { stepLocomotion, beginTravel, beginBackgroundTravel, damp } from './locomotion'
-import { avatarPromise, clipAssetsPromise } from './avatarAssets'
+import { avatarPromise, clipsPromise } from './avatarAssets'
 import { runtime, FRAME } from '../systems/runtime'
 import { SPAWN } from '../layout'
 import { useStore } from '../../state/store'
@@ -18,7 +17,7 @@ const MAX_LEAN = 0.16
 export default function Character() {
   // Suspends until the downloads that began at import time have finished (avatarAssets.js).
   const gltf = use(avatarPromise)
-  const { idle: idleAsset, walk: walkAsset, run: runAsset } = use(clipAssetsPromise)
+  const clips = use(clipsPromise)
 
   // One-time, idempotent preparation. These VRMUtils calls mutate the cached model and
   // are NOT safe to repeat (rotateVRM0 spins the model 180° every call), and React
@@ -43,15 +42,7 @@ export default function Character() {
     return vrm
   }, [gltf])
 
-  const animator = useMemo(
-    () =>
-      createLocomotionAnimator(vrm, {
-        idle: retargetMixamoAnimation(idleAsset, vrm),
-        walk: retargetMixamoAnimation(walkAsset, vrm),
-        run: retargetMixamoAnimation(runAsset, vrm),
-      }),
-    [vrm, idleAsset, walkAsset, runAsset],
-  )
+  const animator = useMemo(() => createLocomotionAnimator(vrm, clips), [vrm, clips])
 
   // Playback lives in an effect (not the memo) with a symmetric cleanup, so StrictMode's
   // mount → unmount → mount leaves exactly one set of playing actions.

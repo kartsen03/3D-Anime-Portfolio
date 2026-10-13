@@ -1,9 +1,40 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
 
-// Vite is the dev server + build tool. The React plugin enables JSX and Fast Refresh.
+// Development-only endpoint that lets in-browser tools (the animation baker, the
+// share-image renderer) save their output into public/. It exists only on the dev
+// server (apply: 'serve'), which listens on localhost, and accepts a short allowlist
+// of file names — nothing else can be written.
+function devAssetWriter() {
+  const allowed = [/^animations\/clips\.v\d+\.json$/, /^og\.v\d+\.jpg$/, /^apple-touch-icon\.png$/]
+  return {
+    name: 'dev-asset-writer',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/__dev/write', (req, res) => {
+        const file = new URL(req.url, 'http://localhost').searchParams.get('file') ?? ''
+        if (req.method !== 'POST' || !allowed.some((re) => re.test(file))) {
+          res.statusCode = 400
+          res.end('refused')
+          return
+        }
+        const chunks = []
+        req.on('data', (c) => chunks.push(c))
+        req.on('end', () => {
+          const target = resolve(server.config.root, 'public', file)
+          mkdirSync(dirname(target), { recursive: true })
+          writeFileSync(target, Buffer.concat(chunks))
+          res.end(`wrote public/${file}`)
+        })
+      })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), devAssetWriter()],
   // Deployed to a root domain (Vercel), so the base is '/'. This keeps the absolute
   // /models, /animations and /fonts URLs valid.
   base: '/',

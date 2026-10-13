@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#c8442b"/>
+  <!-- kasagi: the curved top beam, upturned at the ends -->
+  <path d="M7 15.5c8 2.6 42 2.6 50 0l-1.6 5.6c-8.6 1.6-38.2 1.6-46.8 0z" fill="#fff6ea"/>
+  <!-- nuki: the lower cross beam -->
+  <rect x="12" y="27" width="40" height="4.2" rx="0.8" fill="#fff6ea"/>
+  <!-- gakuzuka: centre strut -->
+  <rect x="30" y="21" width="4" height="7" fill="#fff6ea"/>
+  <!-- pillars, slightly wider at the foot -->
+  <path d="M19.2 20.5h5l0.8 34.5h-6.6z" fill="#fff6ea"/>
+  <path d="M39.8 20.5h5l0.8 34.5h-6.6z" fill="#fff6ea"/>
+</svg>

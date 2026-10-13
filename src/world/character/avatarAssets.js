@@ -1,5 +1,5 @@
+import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
 import { VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { ASSETS } from '../assets'
 import { progressFor } from '../systems/progress'
@@ -15,10 +15,17 @@ import { progressFor } from '../systems/progress'
 
 const gltfLoader = new GLTFLoader()
 gltfLoader.register((parser) => new VRMLoaderPlugin(parser))
-const fbxLoader = new FBXLoader()
 
 export const avatarPromise = gltfLoader.loadAsync(ASSETS.avatar.url, progressFor(ASSETS.avatar.url))
 
-export const clipAssetsPromise = Promise.all(
-  ['idle', 'walk', 'run'].map((name) => fbxLoader.loadAsync(ASSETS[name].url, progressFor(ASSETS[name].url))),
-).then(([idle, walk, run]) => ({ idle, walk, run }))
+// Animation clips arrive already retargeted onto this avatar's humanoid (see
+// src/world/dev/bakeClips.js), so they parse straight into AnimationClips: no FBX
+// loader, no retargeting maths at runtime.
+export const clipsPromise = new THREE.FileLoader()
+  .setResponseType('json')
+  .loadAsync(ASSETS.clips.url, progressFor(ASSETS.clips.url))
+  .then((data) => {
+    const clips = {}
+    for (const [name, json] of Object.entries(data.clips)) clips[name] = THREE.AnimationClip.parse(json)
+    return clips
+  })

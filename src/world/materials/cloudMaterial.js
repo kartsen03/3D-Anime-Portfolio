@@ -18,11 +18,14 @@ const vertexShader = /* glsl */ `
 attribute vec3 aCenter;
 attribute float aRadius;
 attribute float aSeed;
+attribute vec4 aBank; // centre and radius of the bank (cloud heap) this puff belongs to
 uniform float uTime;
 uniform float uDrift;
 varying vec2 vUv;
 varying vec3 vCenterView;
 varying vec3 vCenterWorld;
+varying vec3 vBankWorld;
+varying float vBankRadius;
 varying float vRadius;
 varying float vSeed;
 
@@ -39,6 +42,8 @@ void main() {
   vUv = position.xy;
   vCenterView = centerView.xyz;
   vCenterWorld = (modelMatrix * vec4(center, 1.0)).xyz;
+  vBankWorld = (modelMatrix * vec4(aBank.xyz, 1.0)).xyz;
+  vBankRadius = aBank.w;
   vRadius = radius;
   vSeed = aSeed;
   gl_Position = projectionMatrix * vec4(centerView.xyz + vec3(position.xy * radius, 0.0), 1.0);
@@ -60,9 +65,14 @@ uniform float uFogScale;
 uniform float uEmissive;
 uniform float uBaseY;
 uniform float uBumpScale;
+uniform float uBankWeight;
+uniform float uBankFlatten;
+uniform float uBumpAmount;
 varying vec2 vUv;
 varying vec3 vCenterView;
 varying vec3 vCenterWorld;
+varying vec3 vBankWorld;
+varying float vBankRadius;
 varying float vRadius;
 varying float vSeed;
 
@@ -91,30 +101,57 @@ void main() {
   // below it. From above you see the lumpy tops; from the side, the classic flat bottom.
   if (surfaceWorld.y < uBaseY) discard;
 
+  // Light each puff mostly as part of its bank: blend the puff's own sphere normal toward
+  // the normal of the bank's overall mound (a flattened ellipsoid). The light then sweeps
+  // across the whole heap, and neighbouring puffs share one gradient, instead of every
+  // puff getting its own lit cap and dark crescent (the "field of balloons" look).
+  vec3 toBank = surfaceWorld - vBankWorld;
+  vec3 bankN = normalize(vec3(toBank.x, toBank.y * uBankFlatten + 1e-3, toBank.z));
+  vec3 puffN = n;
+  n = normalize(mix(n, bankN, uBankWeight));
+  vec3 viewDirWorld = normalize(vCenterWorld - cameraPosition);
+  // Rim from the puff's own outline, but only along its upper edge: light catching the
+  // thin tops of a cloud (a silver lining), never a ring around every puff.
+  float fresnel = pow(1.0 - clamp(dot(puffN, -viewDirWorld), 0.0, 1.0), 3.0) * smoothstep(0.05, 0.75, puffN.y);
+
   // Cauliflower bumps: perturb the normal with world-space noise so the light/shadow
-  // boundary wanders like a painted cloud instead of tracing a perfect sphere.
-  vec2 bumpUv = surfaceWorld.xz * uBumpScale + surfaceWorld.y * uBumpScale * 0.7;
-  vec3 bump = texture2D(uNoise, bumpUv).rgb - 0.5;
-  bump += (texture2D(uNoise, bumpUv * 2.7 + 0.37).rgb - 0.5) * 0.5;
-  n = normalize(n + bump * 0.95);
+  // boundary wanders like a painted cloud instead of tracing a perfect sphere. Fainter
+  // with distance, where the noise would only add speckle.
+  float dist = length(surfaceView);
+  float far = smoothstep(120.0, 520.0, dist);
+  // The coarse octave is triplanar (projected along each axis, blended by the normal):
+  // a single top-down projection smears into vertical streaks down the sides of a heap.
+  vec3 q = surfaceWorld * uBumpScale;
+  vec3 tw = abs(puffN);
+  tw /= tw.x + tw.y + tw.z;
+  vec3 bump = texture2D(uNoise, q.yz).rgb * tw.x + texture2D(uNoise, q.xz).rgb * tw.y + texture2D(uNoise, q.xy).rgb * tw.z - 0.5;
+  bump += (texture2D(uNoise, (q.xz + q.y * 0.7) * 2.7 + 0.37).rgb - 0.5) * 0.5;
+  n = normalize(n + bump * uBumpAmount * (1.0 - far * 0.6));
   float ndl = dot(n, uSunDir);
-  float aa = fwidth(ndl) * 1.5;
-  float body = smoothstep(-0.12 - aa, -0.12 + aa, ndl);
-  float high = smoothstep(0.5 - aa, 0.5 + aa, ndl);
+  // Most of each bank is lit; only the undersides fall into shadow. Far away the bands
+  // soften and lose contrast (aerial perspective flattens distant shading; crisp bands on
+  // small distant puffs read as beads).
+  float aa = fwidth(ndl) * 1.5 + far * 0.22;
+  float body = smoothstep(-0.32 - aa, -0.32 + aa, ndl);
+  float high = smoothstep(0.42 - aa, 0.42 + aa, ndl);
   vec3 col = mix(uCloudShadow, uCloudMid, body);
   col = mix(col, uCloudLit, high);
+  col = mix(col, mix(uCloudShadow, uCloudMid, 0.75), far * 0.3);
 
-  // Silhouette rim, strongest when the sun is behind the cloud (backlit edges glow).
-  vec3 viewDirWorld = normalize(vCenterWorld - cameraPosition);
-  float fresnel = pow(1.0 - nView.z, 3.0);
+  // Silhouette rim, mostly when the sun is behind the cloud (backlit edges glow). It uses
+  // the bank-blended normal, so it outlines each heap rather than every puff.
   float backlit = max(dot(viewDirWorld, uSunDir), 0.0);
-  col += uSunColor * fresnel * (0.18 + backlit * 0.85) * 0.55;
+  col += uSunColor * fresnel * (0.06 + backlit * 0.8) * 0.5;
 
-  // Cooler, darker undersides.
-  col *= mix(0.86, 1.04, n.y * 0.5 + 0.5);
+  // Whole-bank shading by height above the cloud base, scaled to the bank's size: the low
+  // parts of a heap sit in its own shadow, so neighbouring puffs share one gradient.
+  float bankHeight = clamp((surfaceWorld.y - uBaseY) / max(vBankRadius * 0.45, 4.0), 0.0, 1.0);
+  col *= mix(0.78, 1.04, bankHeight);
+  // Where a heap meets the cloud layer it rises from, blend into the layer's own tone, so
+  // it grows out of the layer instead of sitting on it with a dark seam.
+  col = mix(mix(uCloudShadow, uCloudMid, 0.5), col, smoothstep(0.0, 0.3, bankHeight));
 
   // Aerial perspective: far puffs melt into the sky behind them.
-  float dist = length(surfaceView);
   float fogAmount = smoothstep(uFogNear, uFogFar * uFogScale, dist);
   col = mix(col, skyGradient(viewDirWorld), fogAmount * 0.9);
 
@@ -131,6 +168,9 @@ export function createCloudMaterial({
   emissive = 0,
   baseY = -1e4,
   bumpScale = 0.06,
+  bankWeight = 0, // 0 = each puff shades as its own sphere; toward 1 = as part of its bank
+  bankFlatten = 2.5, // >1 flattens the bank's mound (sea banks), <1 makes it tall (towers)
+  bumpAmount = 0.95,
 } = {}) {
   return new THREE.ShaderMaterial({
     uniforms: {
@@ -154,6 +194,9 @@ export function createCloudMaterial({
       uEmissive: { value: emissive },
       uBaseY: { value: baseY },
       uBumpScale: { value: bumpScale },
+      uBankWeight: { value: bankWeight },
+      uBankFlatten: { value: bankFlatten },
+      uBumpAmount: { value: bumpAmount },
     },
     defines: sphereDepth ? { SPHERE_DEPTH: '' } : {},
     vertexShader,
@@ -161,7 +204,10 @@ export function createCloudMaterial({
   })
 }
 
-/** Instanced quad geometry for `count` puffs: fill aCenter/aRadius/aSeed after creating. */
+/**
+ * Instanced quad geometry, one instance per puff: { center, radius, seed, bank? }, where
+ * `bank` is [x, y, z, radius] of the heap the puff belongs to (defaults to the puff itself).
+ */
 export function createPuffGeometry(puffs) {
   const base = new THREE.PlaneGeometry(2, 2)
   const geo = new THREE.InstancedBufferGeometry()
@@ -170,14 +216,17 @@ export function createPuffGeometry(puffs) {
   const centers = new Float32Array(puffs.length * 3)
   const radii = new Float32Array(puffs.length)
   const seeds = new Float32Array(puffs.length)
+  const banks = new Float32Array(puffs.length * 4)
   puffs.forEach((p, i) => {
     centers.set(p.center, i * 3)
     radii[i] = p.radius
     seeds[i] = p.seed
+    banks.set(p.bank ?? [...p.center, p.radius], i * 4)
   })
   geo.setAttribute('aCenter', new THREE.InstancedBufferAttribute(centers, 3))
   geo.setAttribute('aRadius', new THREE.InstancedBufferAttribute(radii, 1))
   geo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seeds, 1))
+  geo.setAttribute('aBank', new THREE.InstancedBufferAttribute(banks, 4))
   geo.instanceCount = puffs.length
   // Bounds for frustum culling: the whole spread of puffs.
   geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5)

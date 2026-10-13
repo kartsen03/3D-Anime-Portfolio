@@ -12,7 +12,7 @@ import { fbm3, mulberry32 } from './noise'
 //  • a few smaller hanging spires to break up the underside silhouette.
 // All of it uses the shared toon material, so it bands and shadows like everything else.
 
-const SEGMENTS = 160
+const SEGMENTS = 128
 const RINGS = 34
 const CLIFF_LEVELS = 26
 const CLIFF_DEPTH = 26
@@ -80,9 +80,10 @@ function buildCliff() {
       colors.push(col.r, col.g, col.b)
     }
   }
-  // Close the spire with a tip vertex.
+  // Close the spire with a tip vertex, ending just above the cloud layer (y ≈ -32), which
+  // doesn't write depth and so couldn't hide anything poking through it.
   const tip = positions.length / 3
-  positions.push(0.6, lipY - CLIFF_DEPTH - 7, -0.4)
+  positions.push(0.6, lipY - CLIFF_DEPTH - 4, -0.4)
   colors.push(STRATA[1].r, STRATA[1].g, STRATA[1].b)
   // Winding: counter-clockwise seen from outside, so faces (and normals) point outward.
   for (let k = 0; k < CLIFF_LEVELS; k++) {
@@ -100,10 +101,10 @@ function buildCliff() {
   g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
   g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
   g.setIndex(indices)
-  // Flat-shaded facets: split the mesh so every triangle has its own normal.
-  const flat = g.toNonIndexed()
-  flat.computeVertexNormals()
-  return flat
+  // Smooth normals: the strata colours carry the rock's detail. (Flat-shaded facets this
+  // small each picked up an ink crease line, which read as noise.)
+  g.computeVertexNormals()
+  return g
 }
 
 // Smaller spires hanging from the underside.
@@ -152,7 +153,7 @@ export default function Island() {
       cliff: buildCliff(),
       hanging: buildHangingRocks(),
       meadowMat: createToonMaterial({ vertexColors: true }, { key: 'meadow', rim: false }),
-      rockMat: createToonMaterial({ vertexColors: true, flatShading: true }, { key: 'rock' }),
+      rockMat: createToonMaterial({ vertexColors: true }, { key: 'cliff' }),
       hangingMat: createToonMaterial({ color: '#7d6b5c', flatShading: true }, { key: 'rock' }),
     }),
     [],
@@ -160,7 +161,8 @@ export default function Island() {
   return (
     <group>
       <mesh geometry={meadow} material={meadowMat} receiveShadow />
-      <mesh geometry={cliff} material={rockMat} receiveShadow castShadow />
+      {/* No receiveShadow: steep cliff faces only showed shadow-map acne (moiré), not shapes. */}
+      <mesh geometry={cliff} material={rockMat} castShadow />
       <mesh geometry={hanging} material={hangingMat} castShadow />
     </group>
   )

@@ -48,7 +48,7 @@ export function AboutBody() {
           <li key={p.title} className="entry">
             <div className="entry__title">{p.title}</div>
             <div className="entry__org">{p.venue}</div>
-            <div className="entry__detail">{p.detail}</div>
+            {p.detail && <div className="entry__detail">{p.detail}</div>}
           </li>
         ))}
       </ul>
@@ -83,7 +83,7 @@ export function ProjectCard({ project: p, headingLevel = 3 }) {
     <article className="project" id={`project-${p.id}`} aria-labelledby={`project-${p.id}-title`}>
       <header className="project__head">
         <div className="project__meta">
-          <span>{p.period}</span>
+          {p.period && <span>{p.period}</span>}
           {p.note && <span className="badge">{p.note}</span>}
           {updated && <span className="project__updated">Updated {updated}</span>}
         </div>
@@ -92,7 +92,7 @@ export function ProjectCard({ project: p, headingLevel = 3 }) {
         </H>
         <p className="project__tagline">{p.tagline}</p>
       </header>
-      <p className="project__desc">{p.description}</p>
+      {p.description && <p className="project__desc">{p.description}</p>}
       {p.facts.length > 0 && (
         <ul className="project__facts">
           {p.facts.map((f) => (
@@ -125,9 +125,7 @@ export function ProjectCard({ project: p, headingLevel = 3 }) {
 export function ProjectsBody() {
   return (
     <div className="body body--projects">
-      <p className="lede">
-        Selected work, strongest first. Every number here comes from the linked repository’s own results.
-      </p>
+      <p className="lede">Selected work, strongest first, then course projects.</p>
       <div className="projects">
         {projects.map((p) => (
           <ProjectCard key={p.id} project={p} />
@@ -177,8 +175,8 @@ export function ResumeBody() {
   return (
     <div className="body body--resume">
       <p className="lede">
-        A one-page summary of education, experience and projects. For the newest work, the Projects section is more
-        current than the PDF.
+        A one-page summary of education, experience, and projects. The Projects section here covers more work than the
+        PDF has room for.
       </p>
       <div className="resume-card">
         <div>
@@ -190,7 +188,7 @@ export function ResumeBody() {
             View PDF <IconExternal />
             <span className="visually-hidden"> (opens in a new tab)</span>
           </a>
-          <a className="btn btn--ghost" href={profile.resume.file} download="Karthik-Sengupta-Resume.pdf">
+          <a className="btn btn--ghost" href={profile.resume.file} download="Karthik_Sengupta_Resume.pdf">
             <IconDownload /> Download
           </a>
         </div>

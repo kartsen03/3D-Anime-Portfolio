@@ -54,9 +54,12 @@
   letter-spacing: -0.005em;
 }
 .hud__role {
+  /* Wraps onto a second line before it can run under the tools at the top right. */
+  max-width: calc(100vw - 340px);
   margin: 3px 0 0;
   font-family: var(--font-mono);
   font-size: 0.68rem;
+  line-height: 1.5;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--hud-ink-2);

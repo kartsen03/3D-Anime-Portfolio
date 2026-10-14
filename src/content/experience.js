@@ -1,40 +1,57 @@
-// Roles, most recent first. Wording follows the résumé (public/resume.pdf).
+// Roles, most recent first. Wording follows the October 2026 content brief and résumé
+// (public/Karthik_Sengupta_Resume.pdf). The student council entry keeps its earlier role
+// underneath, as before.
 
 export const experience = [
+  {
+    id: 'ta',
+    role: 'Graduate Teaching Assistant, Program Design Paradigms (CS 5010)',
+    org: 'Khoury College, Northeastern University',
+    dates: 'Sep 2026 – present',
+    points: [
+      'Review student code for design quality and test rigor (JUnit 5, JaCoCo, PIT mutation testing) in a graduate Java course on object-oriented design.',
+      'Run labs and office hours, and debug build and toolchain failures across Gradle, IntelliJ, and the JDK.',
+    ],
+  },
+  {
+    id: 'gsm',
+    role: 'Global Student Mentor',
+    org: 'Office of Global Services, Northeastern University',
+    dates: 'Aug 2026 – present',
+    points: [
+      'Selected through a competitive multi-round process to mentor a cohort of incoming international students through small-group sessions and monthly meetups.',
+    ],
+  },
   {
     id: 'kmsc',
     role: 'President',
     org: 'Khoury Masters Student Council, Northeastern University',
-    dates: 'Apr 2026 – Present',
-    points: [
-      'Lead governance and faculty relations for 150+ MS students; drafted the founding constitution and transitioned the council to a formal election model.',
-    ],
+    dates: 'Apr 2026 – present',
+    points: ['Leads governance for 150+ MS students, wrote the founding constitution, and moved the council to a formal election model.'],
     earlier: {
       role: 'Treasurer',
       dates: 'Dec 2025 – Mar 2026',
-      points: [
-        'Managed budgeting and coordinated 5+ professional and community events per semester with Khoury Operations and Recruitment teams.',
-      ],
+      points: ['Managed the council budget and supported 5+ events a semester. Before that: Event Coordinator.'],
     },
   },
   {
     id: 'iitd',
     role: 'Research Intern',
     org: 'National Center for Assistive Health Technology, IIT Delhi',
-    dates: 'Jun 2024 – Jul 2024',
+    dates: 'Jun – Jul 2024',
     points: [
-      'Built an AI-powered web application integrating the ChatGPT API (LLM) and OpenCV to automate real-time image description for 200+ visually impaired students across 8 education centers, achieving 82% accuracy validated by specialists.',
-      'Engineered Python NLP pipelines for preprocessing, summarization, and descriptive analytics, cutting manual effort by 65%; deployed as Flask REST APIs with concurrent multi-center access and production-grade error handling.',
+      'Designed, built, and deployed an AI application (OpenCV + LLM APIs) end to end for 200+ users across 8 sites, reaching 82% accuracy validated by domain specialists.',
+      'Engineered Python pipelines and Flask REST APIs supporting concurrent multi-site access, cutting manual effort by 65%.',
     ],
   },
   {
     id: 'ltim',
     role: 'Software Development Engineer Intern',
-    org: 'LTIMindtree',
-    dates: 'Aug 2023 – Oct 2023',
+    org: 'LTIMindtree, Chennai',
+    dates: 'Aug – Oct 2023',
     points: [
-      'Built an HR analytics and automation platform on Microsoft Power Platform automating 500+ workflow events and cutting onboarding cycle time 35%; adoption grew 30% in daily active users within the first quarter.',
-      'Designed Power BI dashboards and optimized SQL ingestion pipelines delivering real-time metrics to technical and non-technical stakeholders, eliminating 15+ hours/month of manual reporting.',
+      'Owned the employee onboarding and offboarding database end to end, from design through maintenance, and built the Power BI observability dashboards on top of it, replacing 15+ hours a month of manual reporting.',
+      'Contributed SQL ingestion and automation improvements within the team’s existing microservices platform, part of an effort that automated 500+ lifecycle events and cut onboarding time by 35%.',
     ],
   },
 ]

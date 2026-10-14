@@ -12,7 +12,9 @@ import { useStore } from '../../state/store'
 // post-processing passes, which only compile when first drawn.
 //
 // This component sits inside the same Suspense boundary as the asset loaders, so it
-// mounts only once every critical asset has arrived.
+// mounts only once every critical asset has arrived. It warms up again after every
+// quality-tier change, which rebuilds grass, clouds and post-processing with new shaders
+// (the frame pacer may change tier behind the splash, just before the opening shot).
 
 const TEXTURE_SLOTS = ['map', 'emissiveMap', 'normalMap', 'alphaMap', 'gradientMap', 'shadeMultiplyTexture', 'matcapTexture', 'rimMultiplyTexture']
 
@@ -37,7 +39,7 @@ export default function WarmUp() {
 
   useEffect(() => {
     let cancelled = false
-    const run = async () => {
+    const warm = async () => {
       try {
         await gl.compileAsync(scene, camera)
       } catch {
@@ -56,6 +58,9 @@ export default function WarmUp() {
           }
         }
       })
+    }
+    const run = async () => {
+      await warm()
       await nextFrame()
       await nextFrame()
       if (cancelled) return
@@ -64,8 +69,14 @@ export default function WarmUp() {
       if (store.phase === 'loading') store.setPhase('ready')
     }
     run()
+    // After a tier change, wait one frame for React to mount the rebuilt objects.
+    const unsubTier = useStore.subscribe(
+      (s) => s.tier,
+      () => nextFrame().then(() => !cancelled && warm()),
+    )
     return () => {
       cancelled = true
+      unsubTier()
     }
   }, [gl, scene, camera])
 

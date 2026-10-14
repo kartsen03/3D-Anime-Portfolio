@@ -80,7 +80,6 @@ function WorldContents() {
 // The 3D world, loaded as its own chunk (three.js and friends are most of the site's
 // JavaScript). The interface renders first; this streams in behind the splash.
 export default function World() {
-  const mode = useStore((s) => s.mode)
   const theme = useStore((s) => s.theme)
 
   return (
@@ -92,8 +91,9 @@ export default function World() {
         flat // tone mapping happens in the post chain, not in each material
         dpr={1}
         camera={{ fov: 40, near: 0.1, far: 1200, position: [0, 3, 10] }}
-        // The text-only Quick view pauses the world entirely (no GPU, no battery drain).
-        frameloop={mode === 'world' ? 'always' : 'never'}
+        // Frames are drawn by the frame pacer (render/QualityManager.jsx), which also pauses
+        // the world entirely in the text version.
+        frameloop="never"
         onCreated={({ gl }) => gl.setClearColor(THEMES[theme].background)}
       >
         <WorldContents />

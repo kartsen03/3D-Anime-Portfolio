@@ -34,6 +34,9 @@ export const runtime = {
   // Development aid: when true the camera rig stops following, so a tool can frame a
   // shot (art reviews, the share-image renderer). Never set by the site itself.
   freeCamera: false,
+  // Development aid: when true the frame pacer (render/QualityManager.jsx) stops drawing,
+  // because a tool is advancing frames itself with simulated time.
+  manualFrames: false,
 }
 
 // useFrame priorities, in execution order (R3F runs lower numbers first). Fixing the

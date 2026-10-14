@@ -44,8 +44,8 @@ export function tierDpr(tier) {
 }
 
 /**
- * First guess at a tier before any frame has been measured. The PerformanceMonitor then
- * corrects it within the first seconds (during the intro, where a change isn't noticed).
+ * First guess at a tier before any frame has been measured. The frame pacer
+ * (QualityManager.jsx) then corrects it from GPU timings while the splash is still up.
  */
 export function guessInitialTier(gl) {
   const coarse = window.matchMedia?.('(pointer: coarse)').matches

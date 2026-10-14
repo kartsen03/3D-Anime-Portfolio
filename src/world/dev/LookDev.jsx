@@ -18,9 +18,10 @@ export default function LookDev() {
     // instead of the real clock, so every step is exactly 1/60 s of simulated time and
     // captures are deterministic even when the tab isn't drawing frames.
     get().setFrameloop('never')
+    runtime.manualFrames = true // the frame pacer stands down
     let t = get().clock.elapsedTime
     const drive = async (seconds) => {
-      // Re-assert: a Canvas re-render (e.g. a theme switch) re-applies frameloop='always'.
+      // Re-assert, in case anything switched the frame loop back on.
       if (get().frameloop !== 'never') {
         get().setFrameloop('never')
         t = Math.max(t, get().clock.elapsedTime)
@@ -65,6 +66,7 @@ export default function LookDev() {
     window.__lookdev = { drive, view, shot, theme, follow, get, runtime, store: useStore }
     return () => {
       delete window.__lookdev
+      runtime.manualFrames = false
     }
   }, [get])
 

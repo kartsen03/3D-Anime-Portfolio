@@ -1,10 +1,17 @@
 {
-  "syncedAt": "2026-10-13T21:38:53.985Z",
+  "syncedAt": "2026-10-14T00:39:38.249Z",
   "repos": {
     "kartsen03/minicompiler": {
       "pushedAt": "2026-10-05T15:33:54Z",
       "stars": 0,
       "language": "C++",
+      "homepage": null,
+      "archived": false
+    },
+    "kartsen03/validated-study-tracker": {
+      "pushedAt": "2026-10-02T15:23:20Z",
+      "stars": 0,
+      "language": "Python",
       "homepage": null,
       "archived": false
     },
@@ -22,13 +29,6 @@
       "homepage": null,
       "archived": false
     },
-    "kartsen03/validated-study-tracker": {
-      "pushedAt": "2026-10-02T15:23:20Z",
-      "stars": 0,
-      "language": "Python",
-      "homepage": null,
-      "archived": false
-    },
     "kartsen03/perceptual-quality-lab": {
       "pushedAt": "2026-07-28T15:27:29Z",
       "stars": 0,
@@ -37,17 +37,10 @@
       "archived": false
     },
     "kartsen03/3D-Anime-Portfolio": {
-      "pushedAt": "2026-07-25T07:41:14Z",
+      "pushedAt": "2026-10-14T00:38:15Z",
       "stars": 0,
       "language": "JavaScript",
       "homepage": "https://karthik-sengupta.vercel.app",
-      "archived": false
-    },
-    "dkumar247/NU-Gemma-hackathon": {
-      "pushedAt": "2026-06-27T17:16:33Z",
-      "stars": 0,
-      "language": "Python",
-      "homepage": null,
       "archived": false
     }
   }

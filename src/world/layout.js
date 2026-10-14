@@ -10,9 +10,11 @@ export const ISLAND = {
 }
 
 // Spawn point. `view` is the direction the opening camera looks (the About gate a little
-// left of centre, the sakura right of it); `heading` is where the character faces — a
-// three-quarter turn toward the About gate, the first section, as if about to set off.
-export const SPAWN = { position: [0, 0, 2.5], heading: Math.PI * 0.35, view: Math.PI * 0.2 }
+// left of centre, the sakura right of it); `heading` is where the character faces: back
+// toward that camera, turned a little to one side, so the opening shot ends on a
+// three-quarter front view of the character with the shrine behind them.
+const VIEW = Math.PI * 0.2
+export const SPAWN = { position: [0, 0, 2.5], heading: VIEW + Math.PI - 0.32, view: VIEW }
 
 // The name written across the sky: straight ahead of the spawn view, far out and high
 // up, facing back toward the island. The opening shot starts looking up at it.

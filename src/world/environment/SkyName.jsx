@@ -141,7 +141,6 @@ void main() {
 
 const lightFragment = /* glsl */ `
 uniform float uLanterns;
-uniform float uVisible;
 uniform vec3 uColor;
 varying vec2 vUv;
 varying float vFlicker;
@@ -149,7 +148,7 @@ void main() {
   float d = length(vUv);
   float core = smoothstep(0.42, 0.18, d);
   float halo = pow(clamp(1.0 - d, 0.0, 1.0), 2.5) * 0.55;
-  float a = (core + halo) * vFlicker * smoothstep(0.35, 0.95, uLanterns) * uVisible;
+  float a = (core + halo) * vFlicker * smoothstep(0.35, 0.95, uLanterns);
   if (a < 0.004) discard;
   gl_FragColor = vec4(uColor * a * 3.2, a);
 }
@@ -157,7 +156,6 @@ void main() {
 
 export default function SkyName() {
   const tier = useStore((s) => s.tier)
-  const intro = useStore((s) => s.intro)
   const width = useThree((s) => s.size.width)
   const height = useThree((s) => s.size.height)
   const placement = useMemo(() => skyNamePlacement(lensFor(width, height).hFov), [width, height])
@@ -194,18 +192,16 @@ export default function SkyName() {
     }))
     const puffGeo = createPuffGeometry(puffs)
     const puffMat = createCloudMaterial({ sphereDepth: false, fogScale: 9, drift: 1.5, bumpScale: 0.03 })
-    // Dissolve the cloud letters away as twilight falls (and when the intro variant is
-    // the typographic title card, which doesn't use the sky name).
+    // Dissolve the cloud letters away, puff by puff, as twilight falls.
     puffMat.uniforms.uLanterns = U.uLanterns
-    puffMat.uniforms.uVisible = { value: 1 }
     puffMat.fragmentShader = puffMat.fragmentShader
-      .replace('void main() {', 'uniform float uLanterns;\nuniform float uVisible;\nvoid main() {')
+      .replace('void main() {', 'uniform float uLanterns;\nvoid main() {')
       .replace(
         'if (r2 > edge * edge) discard;',
-        'if (r2 > edge * edge) discard;\n  if (fract(sin(vSeed * 91.7) * 4375.5) < smoothstep(0.35, 0.8, uLanterns) || uVisible < 0.5) discard;',
+        'if (r2 > edge * edge) discard;\n  if (fract(sin(vSeed * 91.7) * 4375.5) < smoothstep(0.35, 0.8, uLanterns)) discard;',
       )
     const lightMat = new THREE.ShaderMaterial({
-      uniforms: { uTime: U.uTime, uLanterns: U.uLanterns, uVisible: { value: 1 }, uColor: { value: new THREE.Color('#ffc477') } },
+      uniforms: { uTime: U.uTime, uLanterns: U.uLanterns, uColor: { value: new THREE.Color('#ffc477') } },
       vertexShader: lightVertex,
       fragmentShader: lightFragment,
       transparent: true,
@@ -214,13 +210,6 @@ export default function SkyName() {
     })
     return { puffGeo, puffMat, lightMat }
   }, [fontReady, density])
-
-  useEffect(() => {
-    if (!built) return
-    const v = intro === 'sky' ? 1 : 0
-    built.puffMat.uniforms.uVisible.value = v
-    built.lightMat.uniforms.uVisible.value = v
-  }, [built, intro])
 
   useEffect(
     () => () => {

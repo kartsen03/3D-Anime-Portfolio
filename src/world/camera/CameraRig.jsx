@@ -15,6 +15,16 @@ const { ACTION } = CameraControlsImpl
 const TARGET_HEIGHT = 1.2 // look at roughly chest height
 const FOLLOW_LAMBDA = 8 // how tightly the camera tracks the character (1/s)
 const LEAD_SECONDS = 0.3 // look slightly ahead of where the character is heading
+// Zooming out past the follow range turns the camera into an overview: the look-at point
+// drifts from the character to high above the island's centre and the tilt limit
+// relaxes, so fully zoomed out you see the whole island with the name in the sky beyond.
+const FOLLOW_RANGE = 13 // metres: closer than this, the camera simply follows
+const OVERVIEW_DISTANCE = 60 // metres: fully zoomed out
+const OVERVIEW_TARGET = new THREE.Vector3(0, 16, 0)
+const POLAR_MAX_NEAR = 1.47 // ~6° above the target: never under the island up close
+const POLAR_MAX_FAR = 1.62 // from far away, look slightly up into the sky
+const EXPLORE_POLAR = 1.32 // the follow camera's usual tilt (~14° look-down)
+const OVERVIEW_POLAR = 1.53 // fully zoomed out: level enough to see the sky name above the island
 const _eye = new THREE.Vector3()
 const _target = new THREE.Vector3()
 
@@ -39,10 +49,12 @@ export default function CameraRig() {
   const mode = useRef('follow') // 'follow' | 'focus' | 'returning' | 'intro'
   const viewShift = useRef({ x: 0, y: 0 })
   const intro = useRef(null)
+  const overview = useRef(0) // last overview blend, 0 (following) … 1 (fully zoomed out)
 
   // Opening shot: start looking up at the name written across the sky, hold a beat,
-  // then pan down and glide in to the explore view behind the character. Any key or tap
-  // hurries it along. (Under reduced motion the splash skips straight to 'explore'.)
+  // then pan down and glide in to the character, who stands facing the camera with the
+  // shrine behind them. Any key or tap hurries it along. (Under reduced motion the splash
+  // skips straight to 'explore'.)
   useEffect(
     () =>
       useStore.subscribe(
@@ -53,19 +65,10 @@ export default function CameraRig() {
           const to = { eye: cc.getPosition(new THREE.Vector3()), target: cc.getTarget(new THREE.Vector3()) }
           const back = to.eye.clone().sub(to.target).setY(0).normalize()
           const { size } = get()
-          // Sky variant: start looking up at the name written across the sky. Type variant
-          // (the name is the HTML title card dissolving over the scene): an establishing
-          // shot from high above and behind, looking down across the whole island.
-          const from =
-            useStore.getState().intro === 'sky'
-              ? {
-                  eye: to.eye.clone().addScaledVector(back, 5).add(new THREE.Vector3(0, 2.2, 0)),
-                  target: new THREE.Vector3(...skyNamePlacement(lensFor(size.width, size.height).hFov).position),
-                }
-              : {
-                  eye: to.eye.clone().addScaledVector(back, 16).add(new THREE.Vector3(0, 9, 0)),
-                  target: to.target.clone().addScaledVector(back, -6).setY(-1),
-                }
+          const from = {
+            eye: to.eye.clone().addScaledVector(back, 5).add(new THREE.Vector3(0, 2.2, 0)),
+            target: new THREE.Vector3(...skyNamePlacement(lensFor(size.width, size.height).hFov).position),
+          }
           // The gaze is blended as a direction (yaw, pitch), not as a look-at point. A point
           // that starts 350 m away and slides toward the camera barely changes the view
           // angle until the last moment, so the tilt would bunch into a whip-pan at the end.
@@ -111,9 +114,9 @@ export default function CameraRig() {
   useEffect(() => {
     const cc = ref.current
     cc.minDistance = 3.4
-    cc.maxDistance = 15
+    cc.maxDistance = OVERVIEW_DISTANCE
     cc.minPolarAngle = 0.45 // ~26° from straight down
-    cc.maxPolarAngle = 1.47 // ~6° above the horizon: never under the island
+    cc.maxPolarAngle = POLAR_MAX_NEAR
     cc.smoothTime = 0.2
     cc.draggingSmoothTime = 0.09
     cc.azimuthRotateSpeed = 0.85
@@ -134,9 +137,10 @@ export default function CameraRig() {
     const portrait = width < height
     cc.moveTo(follow.current.x, follow.current.y, follow.current.z, false)
     // Looking along the spawn view, a little above: a shallow ~14° look-down keeps the
-    // horizon (sky, sea of clouds) in the top third instead of a frame of grass.
-    cc.rotateTo(SPAWN.view + Math.PI, 1.32, false)
-    cc.dollyTo(portrait ? 9.5 : 7.2, false)
+    // horizon (sky, sea of clouds) in the top third instead of a frame of grass. Close
+    // enough that the character, facing the camera, reads as a portrait.
+    cc.rotateTo(SPAWN.view + Math.PI, EXPLORE_POLAR, false)
+    cc.dollyTo(portrait ? 8.4 : 6.2, false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -244,7 +248,23 @@ export default function CameraRig() {
       follow.current.x = damp(follow.current.x, tx, FOLLOW_LAMBDA, dt)
       follow.current.y = damp(follow.current.y, c.position.y + TARGET_HEIGHT, FOLLOW_LAMBDA, dt)
       follow.current.z = damp(follow.current.z, tz, FOLLOW_LAMBDA, dt)
-      cc.moveTo(follow.current.x, follow.current.y, follow.current.z, false)
+      // Overview blend (see OVERVIEW_DISTANCE), driven by how far out the camera is.
+      const k = THREE.MathUtils.smoothstep(cc.distance, FOLLOW_RANGE, OVERVIEW_DISTANCE * 0.8)
+      _target.lerpVectors(follow.current, OVERVIEW_TARGET, k)
+      cc.maxPolarAngle = THREE.MathUtils.lerp(POLAR_MAX_NEAR, POLAR_MAX_FAR, k)
+      cc.moveTo(_target.x, _target.y, _target.z, false)
+      // Zooming out also tilts the view up toward the sky (and zooming back in tilts it
+      // back down), in proportion to the zoom, so the scroll wheel alone frames the name
+      // above the island. A drag in progress always wins.
+      const dk = k - overview.current
+      if (Math.abs(dk) > 1e-4 && cc.currentAction === ACTION.NONE) {
+        const remaining = dk > 0 ? 1 - overview.current : overview.current
+        const f = remaining > 1e-4 ? Math.min(1, Math.abs(dk) / remaining) : 1
+        // (The polarAngle setter leaves the azimuth's own easing alone, unlike rotateTo.)
+        const polar = cc.polarAngle
+        cc.polarAngle = polar + ((dk > 0 ? OVERVIEW_POLAR : EXPLORE_POLAR) - polar) * f
+      }
+      overview.current = k
     }
 
     // Shift the projection so the focused landmark stays centred in the part of the

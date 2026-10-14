@@ -69,8 +69,8 @@ export const useStore = create(
 
     // --- presentation ---
     mode: startInQuickView ? 'quick' : 'world', // 'world' | 'quick' (text version)
+    // Golden hour is the default look; twilight is the "dark mode" toggle.
     theme: pick(params.get('theme') ?? saved.theme, ['golden', 'twilight'], 'golden'),
-    intro: pick(params.get('intro') ?? saved.intro, ['sky', 'type'], 'sky'),
     // Explicit user choice wins over the OS setting; null means "follow the OS".
     reducedMotionOverride: typeof saved.reducedMotion === 'boolean' ? saved.reducedMotion : null,
     systemReducedMotion,
@@ -124,10 +124,6 @@ export const useStore = create(
       set({ theme })
       persist(get)
     },
-    setIntro: (intro) => {
-      set({ intro })
-      persist(get)
-    },
     setQuality: (quality) => {
       set({ quality })
       persist(get)
@@ -140,8 +136,8 @@ export const useStore = create(
 )
 
 function persist(get) {
-  const { theme, intro, quality, reducedMotionOverride } = get()
-  writeSettings({ theme, intro, quality, reducedMotion: reducedMotionOverride ?? undefined })
+  const { theme, quality, reducedMotionOverride } = get()
+  writeSettings({ theme, quality, reducedMotion: reducedMotionOverride ?? undefined })
 }
 
 // Keep the address bar in sync so a section can be shared as a link, without adding a

@@ -6,6 +6,7 @@ import { createLocomotionAnimator } from './locomotionAnimation'
 import { stepLocomotion, beginTravel, beginBackgroundTravel, damp } from './locomotion'
 import { avatarPromise, clipsPromise } from './avatarAssets'
 import { toonifyVRM, syncToonMaterials } from './toonify'
+import { createLifeLayer } from './lookAt'
 import { lanternPositions } from '../systems/lanterns'
 import { runtime, FRAME } from '../systems/runtime'
 import { SPAWN } from '../layout'
@@ -44,6 +45,7 @@ export default function Character() {
   const toonMaterials = vrm.scene.userData.toonMaterials
 
   const animator = useMemo(() => createLocomotionAnimator(vrm, clips), [vrm, clips])
+  const life = useMemo(() => createLifeLayer(vrm), [vrm])
 
   // Playback lives in an effect (not the memo) with a symmetric cleanup, so StrictMode's
   // mount → unmount → mount leaves exactly one set of playing actions.
@@ -115,9 +117,11 @@ export default function Character() {
     lean.current = damp(lean.current, targetLean, 6, dt)
     leanRef.current.rotation.z = lean.current
 
-    // Order matters: the mixer poses the normalized humanoid bones, then vrm.update copies
-    // that pose onto the real skeleton and advances spring bones and expressions.
+    // Order matters: the mixer poses the normalized humanoid bones, the life layer turns
+    // the head toward the camera on top of that pose, then vrm.update copies the result
+    // onto the real skeleton and advances eye look-at, spring bones and expressions.
     animator.update(c.speed, dt)
+    life.update(root, state.camera, c.speed, dt)
     vrm.update(dt)
 
     // How close is the nearest lantern? (drives the warm rim light at twilight)

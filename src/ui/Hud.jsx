@@ -45,8 +45,8 @@ export default function Hud() {
           type="button"
           className="icon-btn"
           onClick={() => setTheme(theme === 'golden' ? 'twilight' : 'golden')}
-          aria-label={theme === 'golden' ? 'Switch to the twilight lanterns look' : 'Switch to the golden hour look'}
-          title={theme === 'golden' ? 'Twilight lanterns' : 'Golden hour'}
+          aria-label={theme === 'golden' ? 'Switch to twilight (dark)' : 'Switch to golden hour (light)'}
+          title={theme === 'golden' ? 'Twilight (dark)' : 'Golden hour (light)'}
         >
           {theme === 'golden' ? <IconLantern /> : <IconSun />}
         </button>
@@ -119,13 +119,11 @@ function SettingsMenu() {
   const [open, setOpen] = useState(false)
   const wrap = useRef(null)
   const theme = useStore((s) => s.theme)
-  const intro = useStore((s) => s.intro)
   const quality = useStore((s) => s.quality)
   const tier = useStore((s) => s.tier)
   const reduced = useStore(selectReducedMotion)
   const override = useStore((s) => s.reducedMotionOverride)
   const setTheme = useStore((s) => s.setTheme)
-  const setIntro = useStore((s) => s.setIntro)
   const setQuality = useStore((s) => s.setQuality)
   const setReducedMotion = useStore((s) => s.setReducedMotion)
 
@@ -171,18 +169,8 @@ function SettingsMenu() {
             value={theme}
             onChange={setTheme}
             options={[
-              ['golden', 'Golden hour'],
-              ['twilight', 'Twilight lanterns'],
-            ]}
-          />
-          <Choice
-            legend="Opening"
-            name="intro"
-            value={intro}
-            onChange={setIntro}
-            options={[
-              ['sky', 'Name in the sky'],
-              ['type', 'Title card'],
+              ['golden', 'Golden hour (light)'],
+              ['twilight', 'Twilight (dark)'],
             ]}
           />
           <Choice

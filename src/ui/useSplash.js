@@ -17,13 +17,12 @@ export function useSplash() {
     const quick = document.getElementById('splash-quick')
 
     let dismissed = false
-    // 'leaving' fades the splash out to reveal the world; 'title' (the typographic intro)
-    // lets the name swell and dissolve slowly while the camera moves behind it.
-    const dismiss = (title = false) => {
+    // Fade the splash out to reveal the world (the opening shot starts behind it).
+    const dismiss = () => {
       if (dismissed) return
       dismissed = true
-      splash.dataset.state = title ? 'title' : 'leaving'
-      setTimeout(() => splash.remove(), title ? 2600 : 950)
+      splash.dataset.state = 'leaving'
+      setTimeout(() => splash.remove(), 950)
     }
 
     const begin = () => {
@@ -33,7 +32,7 @@ export function useSplash() {
       // (then the visitor goes straight to the section they asked for).
       const skipIntro = selectReducedMotion(store) || store.pendingSection
       store.setPhase(skipIntro ? 'explore' : 'intro')
-      dismiss(!skipIntro && store.intro === 'type')
+      dismiss()
     }
     const toQuick = (e) => {
       e.preventDefault()
@@ -60,8 +59,10 @@ export function useSplash() {
         enter.disabled = false
         status.textContent = 'The island is ready.'
         if (pct) pct.textContent = ''
-        // A deep link (/#projects) goes straight in.
-        if (useStore.getState().pendingSection) begin()
+        // A deep link (/#projects) goes straight in. (?autostart: dev-only, for automated
+        // test runs that can't click.)
+        const autostart = import.meta.env.DEV && new URLSearchParams(window.location.search).has('autostart')
+        if (useStore.getState().pendingSection || autostart) begin()
       },
       { fireImmediately: true },
     )
